@@ -1,6 +1,5 @@
 #depend "chem"
-
-const Vec2d = Chem.Vec2d
+#depend "box2d" bare
 
 Chem.onReady ->
   const canvas = document.getElementById "game"
@@ -9,27 +8,40 @@ Chem.onReady ->
   const boom = new Chem.Sound 'sfx/boom.ogg'
   const ship = new Chem.Sprite 'ship',
     batch: batch
-    pos: new Vec2d(200, 200)
+    pos: new Chem.Vec2d(200, 200)
     rotation: Math.PI / 2
-  ship_vel = new Vec2d()
   rotation_speed = Math.PI * 0.04
   thrust_amt = 0.1
 
+  # GIMME THE FIZZAQS!
+  world = null
+  ship_body = null
+  let
+    world_box = new b2AABB!
+    world_box.minVertex.Set 0, 0
+    world_box.maxVertex.Set parseInt(canvas.getAttribute "width"), parseInt(canvas.getAttribute "height")
+    world := new b2World world_box, new b2Vec2(0, 300), true
+    circle = new b2CircleDef!
+    circle.density = 1.0
+    circle.radius = 20
+    circle.restitution = 1.0
+    circle.friction = 0
+    ship_body_def = new b2BodyDef!
+    ship_body_def.AddShape circle
+    ship_body_def.position.Set ship.pos.x, ship.pos.y
+    ship_body := world.CreateBody ship_body_def
+
   engine.on 'update', (dt, dx) ->
-    ship.pos.add(ship_vel)
+    world.Step dt, 1
+
+    ship.pos.x = ship_body.m_position.x
+    ship.pos.y = ship_body.m_position.y
 
     # rotate the ship with left and right arrow keys
     if engine.buttonState Chem.Button.Key_Left
       ship.rotation -= rotation_speed * dx
     if engine.buttonState Chem.Button.Key_Right
       ship.rotation += rotation_speed * dx
-
-    # apply forward and backward thrust with up and down arrow keys
-    thrust = new Vec2d Math.cos(ship.rotation), Math.sin(ship.rotation)
-    if engine.buttonState Chem.Button.Key_Up
-      ship_vel.add thrust.scaled(thrust_amt * dx)
-    if engine.buttonState Chem.Button.Key_Down
-      ship_vel.sub thrust.scaled(thrust_amt * dx)
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
