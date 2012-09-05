@@ -1,0 +1,20 @@
+{
+  "name": "vapor",
+  "description": "blah",
+  "author": "Josh Wolfe <thejoshwolfe@gmail.com>",
+  "version": "0.0.0",
+  "engines": {
+    "node": "~0.8.8"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/thejoshwolfe/vapor.git"
+  },
+  "dependencies": {
+    "chem": "~0.1.4",
+    "coco": "~0.7.6"
+  },
+  "scripts": {
+    "dev": "npm install . && chem dev"
+  }
+}
