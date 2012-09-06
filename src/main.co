@@ -1,5 +1,13 @@
 #depend "chem"
-#depend "box2d" bare
+#depend "Box2dWeb-2.1.a.3" bare
+
+const b2Vec2 = Box2D.Common.Math.b2Vec2
+const b2BodyDef = Box2D.Dynamics.b2BodyDef
+const b2Body = Box2D.Dynamics.b2Body
+const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+const b2World = Box2D.Dynamics.b2World
+const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 Chem.onReady ->
   const canvas = document.getElementById "game"
@@ -10,38 +18,47 @@ Chem.onReady ->
     batch: batch
     pos: new Chem.Vec2d(200, 200)
     rotation: Math.PI / 2
-  rotation_speed = Math.PI * 0.04
-  thrust_amt = 0.1
 
   # GIMME THE FIZZAQS!
   world = null
   ship_body = null
   let
-    world_box = new b2AABB!
-    world_box.minVertex.Set 0, 0
-    world_box.maxVertex.Set parseInt(canvas.getAttribute "width"), parseInt(canvas.getAttribute "height")
-    world := new b2World world_box, new b2Vec2(0, 300), true
-    circle = new b2CircleDef!
-    circle.density = 1.0
-    circle.radius = 20
-    circle.restitution = 1.0
-    circle.friction = 0
-    ship_body_def = new b2BodyDef!
-    ship_body_def.AddShape circle
-    ship_body_def.position.Set ship.pos.x, ship.pos.y
-    ship_body := world.CreateBody ship_body_def
+    gravity = new b2Vec2 0, 20
+    world := new b2World gravity, true
+
+    fixDef = new b2FixtureDef!
+    fixDef.density = 1.0
+    fixDef.friction = 0.5
+    fixDef.restitution = 0
+
+    bodyDef = new b2BodyDef!
+
+    # create ground
+    bodyDef.type = b2Body.b2_staticBody
+    bodyDef.position.x = 9
+    bodyDef.position.y = 13
+    fixDef.shape = new b2PolygonShape!
+    fixDef.shape.SetAsBox 10, 0.5
+    world.CreateBody(bodyDef).CreateFixture fixDef
+
+    # create some objects
+    bodyDef.type = b2Body.b2_dynamicBody
+    fixDef.shape = new b2CircleShape 1
+    bodyDef.position.x = 5
+    bodyDef.position.y = 5
+    ship_body := world.CreateBody bodyDef
+    ship_body.CreateFixture fixDef
 
   engine.on 'update', (dt, dx) ->
-    world.Step dt, 1
+    world.Step dt, 1, 1
+    world.ClearForces!
 
-    ship.pos.x = ship_body.m_position.x
-    ship.pos.y = ship_body.m_position.y
+    ship.pos = new Chem.Vec2d ship_body.m_xf.position
+    ship.pos.scale 30
 
-    # rotate the ship with left and right arrow keys
-    if engine.buttonState Chem.Button.Key_Left
-      ship.rotation -= rotation_speed * dx
-    if engine.buttonState Chem.Button.Key_Right
-      ship.rotation += rotation_speed * dx
+    # JOMP!
+    if engine.buttonJustPressed Chem.Button.Key_Up
+      ship_body.ApplyForce new b2Vec2(0, -2000), ship_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space

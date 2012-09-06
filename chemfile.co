@@ -1,6 +1,6 @@
 # extra folders to look for source files
 # you can use #depend statements to include any source files in these folders.
-exports.libs = ["vendor/box2d-js.sourceforge.net"]
+exports.libs = ["vendor"]
 
 # the main source file which depends on the rest of your source files.
 exports.main = 'src/main'
