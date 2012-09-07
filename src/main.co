@@ -9,21 +9,22 @@ const b2World = Box2D.Dynamics.b2World
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
+world_to_canvas = -> new Chem.Vec2d(it).scale 32
+
 Chem.onReady ->
   const canvas = document.getElementById "game"
   const engine = new Chem.Engine canvas
   const batch = new Chem.Batch!
   const boom = new Chem.Sound 'sfx/boom.ogg'
-  const ship = new Chem.Sprite 'ship',
+  const ship_sprite = new Chem.Sprite 'ship',
     batch: batch
-    pos: new Chem.Vec2d(200, 200)
-    rotation: Math.PI / 2
 
   # GIMME THE FIZZAQS!
   world = null
+  floor_fixture = null
   ship_body = null
   let
-    gravity = new b2Vec2 0, 20
+    gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
 
     fixDef = new b2FixtureDef!
@@ -39,39 +40,65 @@ Chem.onReady ->
     bodyDef.position.y = 13
     fixDef.shape = new b2PolygonShape!
     fixDef.shape.SetAsBox 10, 0.5
-    world.CreateBody(bodyDef).CreateFixture fixDef
+    floor_fixture := world.CreateBody(bodyDef).CreateFixture fixDef
 
     # create some objects
     bodyDef.type = b2Body.b2_dynamicBody
-    fixDef.shape = new b2CircleShape 1
+    fixDef.shape = new b2CircleShape 0.5
     bodyDef.position.x = 5
     bodyDef.position.y = 5
     ship_body := world.CreateBody bodyDef
+    ship_body.SetUserData ship_sprite
     ship_body.CreateFixture fixDef
 
   engine.on 'update', (dt, dx) ->
-    world.Step dt, 1, 1
-    world.ClearForces!
-
-    ship.pos = new Chem.Vec2d ship_body.m_xf.position
-    ship.pos.scale 30
+    # left/right
+    const rotation_strength = 5.0
+    if engine.buttonState Chem.Button.Key_Left
+      ship_body.ApplyTorque rotation_strength*-dx
+    if engine.buttonState Chem.Button.Key_Right
+      ship_body.ApplyTorque rotation_strength*dx
 
     # JOMP!
     if engine.buttonJustPressed Chem.Button.Key_Up
-      ship_body.ApplyForce new b2Vec2(0, -2000), ship_body.m_xf.position
+      ship_body.ApplyImpulse new b2Vec2(0, -10), ship_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
       boom.play!
-      ship.setAnimationName 'boom'
-      ship.setFrameIndex 0
-      ship.on 'animation_end', ->
-        ship.delete!
+      ship_sprite.setAnimationName 'boom'
+      ship_sprite.setFrameIndex 0
+      ship_sprite.on 'animation_end', ->
+        ship_sprite.delete!
+
+    world.Step dt, 1, 1
+    world.ClearForces!
+
+    # set the positions of sprite
+    body = world.GetBodyList!
+    while body
+      sprite = body.GetUserData!
+      if sprite instanceof Chem.Sprite
+        sprite.pos = world_to_canvas body.m_xf.position
+        sprite.rotation = body.m_xf.GetAngle!
+      body = body.m_next
+
 
   engine.on 'draw', (context) ->
     # clear canvas to black
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
+
+    # this one isn't drawn by a sprite
+    context.fillStyle = '#ffff66'
+    lower_bound = world_to_canvas floor_fixture.GetAABB!.lowerBound
+    upper_bound = world_to_canvas floor_fixture.GetAABB!.upperBound
+    context.fillRect(
+      lower_bound.x
+      lower_bound.y
+      upper_bound.x - lower_bound.x
+      upper_bound.y - lower_bound.y
+    )
 
     # draw all sprites in batch
     engine.draw batch
