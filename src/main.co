@@ -32,7 +32,7 @@ Chem.onReady ->
     fixDef = new b2FixtureDef!
     fixDef.density = 1.0
     fixDef.friction = 0.5
-    fixDef.restitution = 0.2
+    fixDef.restitution = 0
 
     bodyDef = new b2BodyDef!
 
@@ -49,13 +49,16 @@ Chem.onReady ->
     make_wall 15, 22,  15, 0.5
     make_wall  0, 11, 0.5,  11
     make_wall 30, 11, 0.5,  11
-    # platform
-    make_wall 10, 12,  10, 0.5
+    # platforms
+    make_wall  8, 11,   8, 0.5
+    make_wall 28,  4,   2, 0.5
+    make_wall 28, 18,   2, 0.5
 
     # create the man
     bodyDef.type = b2Body.b2_dynamicBody
     fixDef.shape = new b2PolygonShape!
     fixDef.shape.SetAsBox 0.5, 1
+    fixDef.restitution = 0.2
     bodyDef.position.x = 5
     bodyDef.position.y = 5
     bodyDef.fixedRotation = true
@@ -68,6 +71,7 @@ Chem.onReady ->
     bodyDef.position.y = 5 + 1
     feet_body := world.CreateBody bodyDef
     fixDef.shape = new b2CircleShape 0.5
+    fixDef.restitution = 0
     feet_body.CreateFixture fixDef
     feet_body.SetUserData new Chem.Sprite 'ship', batch: batch
 
@@ -76,6 +80,14 @@ Chem.onReady ->
     world.CreateJoint joint_def
 
   engine.on 'update', (dt, dx) ->
+    is_grounded = do ->
+      contact_edge = feet_body.GetContactList!
+      while contact_edge
+        if contact_edge.contact.IsTouching!
+          return true
+        contact_edge = contact_edge.next
+      false
+
     # left/right
     const rotation_speed = 30
     angular_velocity = 0
@@ -95,8 +107,8 @@ Chem.onReady ->
     feet_body.GetFixtureList!.SetFriction friction
 
     # JOMP!
-    if engine.buttonJustPressed Chem.Button.Key_Up
-      man_body.ApplyImpulse new b2Vec2(0, -30), man_body.m_xf.position
+    if is_grounded and engine.buttonJustPressed Chem.Button.Key_Up
+      man_body.ApplyImpulse new b2Vec2(0, -60), man_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
