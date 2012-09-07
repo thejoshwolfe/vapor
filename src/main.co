@@ -5,6 +5,7 @@ const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2BodyDef = Box2D.Dynamics.b2BodyDef
 const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 const b2World = Box2D.Dynamics.b2World
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
@@ -16,13 +17,14 @@ Chem.onReady ->
   const engine = new Chem.Engine canvas
   const batch = new Chem.Batch!
   const boom = new Chem.Sound 'sfx/boom.ogg'
-  const ship_sprite = new Chem.Sprite 'ship',
+  const man_sprite = new Chem.Sprite 'man',
     batch: batch
+    z_order: 1
 
   # GIMME THE FIZZAQS!
   world = null
-  floor_fixture = null
-  ship_body = null
+  man_body = null
+  feet_body = null
   let
     gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
@@ -30,58 +32,82 @@ Chem.onReady ->
     fixDef = new b2FixtureDef!
     fixDef.density = 1.0
     fixDef.friction = 0.5
-    fixDef.restitution = 0
+    fixDef.restitution = 0.2
 
     bodyDef = new b2BodyDef!
 
-    # create ground
+    # create the room
     bodyDef.type = b2Body.b2_staticBody
-    bodyDef.position.x = 9
-    bodyDef.position.y = 13
     fixDef.shape = new b2PolygonShape!
-    fixDef.shape.SetAsBox 10, 0.5
-    floor_fixture := world.CreateBody(bodyDef).CreateFixture fixDef
+    make_wall = (center_x, center_y, half_size_x, half_size_y) ->
+      bodyDef.position.x = center_x
+      bodyDef.position.y = center_y
+      fixDef.shape.SetAsBox half_size_x, half_size_y
+      world.CreateBody(bodyDef).CreateFixture fixDef
+    # outside walls
+    make_wall 15,  0,  15, 0.5
+    make_wall 15, 22,  15, 0.5
+    make_wall  0, 11, 0.5,  11
+    make_wall 30, 11, 0.5,  11
+    # platform
+    make_wall 10, 12,  10, 0.5
 
-    # create some objects
+    # create the man
     bodyDef.type = b2Body.b2_dynamicBody
-    fixDef.shape = new b2CircleShape 0.5
+    fixDef.shape = new b2PolygonShape!
+    fixDef.shape.SetAsBox 0.5, 1
     bodyDef.position.x = 5
     bodyDef.position.y = 5
-    ship_body := world.CreateBody bodyDef
-    ship_body.SetUserData ship_sprite
-    ship_body.CreateFixture fixDef
+    bodyDef.fixedRotation = true
+    man_body := world.CreateBody bodyDef
+    bodyDef.fixedRotation = false
+    man_body.SetUserData man_sprite
+    man_body.CreateFixture fixDef
+
+    bodyDef.position.x = 5
+    bodyDef.position.y = 5 + 1
+    feet_body := world.CreateBody bodyDef
+    fixDef.shape = new b2CircleShape 0.5
+    feet_body.CreateFixture fixDef
+    feet_body.SetUserData new Chem.Sprite 'ship', batch: batch
+
+    joint_def = new b2RevoluteJointDef!
+    joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
+    world.CreateJoint joint_def
 
   engine.on 'update', (dt, dx) ->
     # left/right
-    const rotation_strength = 5.0
+    const rotation_speed = 30
+    angular_velocity = 0
     if engine.buttonState Chem.Button.Key_Left
-      ship_body.ApplyTorque rotation_strength*-dx
+      angular_velocity -= rotation_speed
     if engine.buttonState Chem.Button.Key_Right
-      ship_body.ApplyTorque rotation_strength*dx
+      angular_velocity += rotation_speed
+    feet_body.SetAngularVelocity angular_velocity
+    if angular_velocity is not 0
+      friction = 3
+      feet_body.SetAwake true
+      fixed_rotation = false
+    else
+      fixed_rotation = true
+      friction = 3
+    feet_body.SetFixedRotation fixed_rotation
+    feet_body.GetFixtureList!.SetFriction friction
 
     # JOMP!
     if engine.buttonJustPressed Chem.Button.Key_Up
-      ship_body.ApplyImpulse new b2Vec2(0, -10), ship_body.m_xf.position
+      man_body.ApplyImpulse new b2Vec2(0, -30), man_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
       boom.play!
-      ship_sprite.setAnimationName 'boom'
-      ship_sprite.setFrameIndex 0
-      ship_sprite.on 'animation_end', ->
-        ship_sprite.delete!
+      man_sprite.setAnimationName 'boom'
+      man_sprite.setFrameIndex 0
+      man_sprite.on 'animation_end', ->
+        man_sprite.delete!
 
-    world.Step dt, 1, 1
+    world.Step dt, 10, 10
     world.ClearForces!
-
-    # set the positions of sprite
-    body = world.GetBodyList!
-    while body
-      sprite = body.GetUserData!
-      if sprite instanceof Chem.Sprite
-        sprite.pos = world_to_canvas body.m_xf.position
-        sprite.rotation = body.m_xf.GetAngle!
-      body = body.m_next
 
 
   engine.on 'draw', (context) ->
@@ -89,18 +115,27 @@ Chem.onReady ->
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
 
-    # this one isn't drawn by a sprite
-    context.fillStyle = '#ffff66'
-    lower_bound = world_to_canvas floor_fixture.GetAABB!.lowerBound
-    upper_bound = world_to_canvas floor_fixture.GetAABB!.upperBound
-    context.fillRect(
-      lower_bound.x
-      lower_bound.y
-      upper_bound.x - lower_bound.x
-      upper_bound.y - lower_bound.y
-    )
+    body = world.GetBodyList!
+    while body
+      sprite = body.GetUserData!
+      if sprite instanceof Chem.Sprite
+        # set the positions of sprite
+        sprite.pos = world_to_canvas body.m_xf.position
+        sprite.rotation = body.m_xf.GetAngle!
+      else if (fixture = body.GetFixtureList!)?
+        # just draw the bounding box
+        context.fillStyle = '#ffff66'
+        lower_bound = world_to_canvas fixture.GetAABB!.lowerBound
+        upper_bound = world_to_canvas fixture.GetAABB!.upperBound
+        context.fillRect(
+          lower_bound.x
+          lower_bound.y
+          upper_bound.x - lower_bound.x
+          upper_bound.y - lower_bound.y
+        )
+      body = body.m_next
 
-    # draw all sprites in batch
+    # draw all the sprites
     engine.draw batch
 
     # draw a little fps counter in the corner

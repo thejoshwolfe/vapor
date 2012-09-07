@@ -19,3 +19,4 @@ exports.spritesheet =
       # animation name.
       frames: "explosion"
     ship: {}
+    man: {}
