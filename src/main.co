@@ -50,14 +50,14 @@ Chem.onReady ->
     make_wall  0, 11, 0.5,  11
     make_wall 30, 11, 0.5,  11
     # platforms
-    make_wall  8, 11,   8, 0.5
+    make_wall  9, 11, 8.5, 0.5
     make_wall 28,  4,   2, 0.5
     make_wall 28, 18,   2, 0.5
 
     # create the man
     bodyDef.type = b2Body.b2_dynamicBody
     fixDef.shape = new b2PolygonShape!
-    fixDef.shape.SetAsBox 0.5, 1
+    fixDef.shape.SetAsBox 0.4, 1.1
     fixDef.restitution = 0.2
     fixDef.friction = 0
     bodyDef.position.x = 5
@@ -69,9 +69,9 @@ Chem.onReady ->
     man_body.CreateFixture fixDef
 
     bodyDef.position.x = 5
-    bodyDef.position.y = 5 + 1
+    bodyDef.position.y = 5 + 1.1
     feet_body := world.CreateBody bodyDef
-    fixDef.shape = new b2CircleShape 0.5
+    fixDef.shape = new b2CircleShape 0.4 - 0.01
     fixDef.restitution = 0
     fixDef.friction = 3
     feet_body.CreateFixture fixDef
@@ -103,7 +103,7 @@ Chem.onReady ->
 
     # JOMP!
     if is_grounded and engine.buttonJustPressed Chem.Button.Key_Up
-      man_body.ApplyImpulse new b2Vec2(0, -60), man_body.m_xf.position
+      man_body.ApplyImpulse new b2Vec2(0, -48), man_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
