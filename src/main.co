@@ -59,6 +59,7 @@ Chem.onReady ->
     fixDef.shape = new b2PolygonShape!
     fixDef.shape.SetAsBox 0.5, 1
     fixDef.restitution = 0.2
+    fixDef.friction = 0
     bodyDef.position.x = 5
     bodyDef.position.y = 5
     bodyDef.fixedRotation = true
@@ -72,6 +73,7 @@ Chem.onReady ->
     feet_body := world.CreateBody bodyDef
     fixDef.shape = new b2CircleShape 0.5
     fixDef.restitution = 0
+    fixDef.friction = 3
     feet_body.CreateFixture fixDef
     feet_body.SetUserData new Chem.Sprite 'ship', batch: batch
 
@@ -96,15 +98,8 @@ Chem.onReady ->
     if engine.buttonState Chem.Button.Key_Right
       angular_velocity += rotation_speed
     feet_body.SetAngularVelocity angular_velocity
-    if angular_velocity is not 0
-      friction = 3
-      feet_body.SetAwake true
-      fixed_rotation = false
-    else
-      fixed_rotation = true
-      friction = 3
-    feet_body.SetFixedRotation fixed_rotation
-    feet_body.GetFixtureList!.SetFriction friction
+    feet_body.SetFixedRotation angular_velocity is 0
+    feet_body.SetAwake true
 
     # JOMP!
     if is_grounded and engine.buttonJustPressed Chem.Button.Key_Up
