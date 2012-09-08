@@ -1,5 +1,7 @@
 #depend "chem"
 
+const from_base64 = atob or alert "this browser can't decode base64 data"
+
 const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2BodyDef = Box2D.Dynamics.b2BodyDef
 const b2Body = Box2D.Dynamics.b2Body
@@ -9,7 +11,62 @@ const b2World = Box2D.Dynamics.b2World
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
-Chem.onReady ->
+map = null
+let
+  ready_conditions = []
+  new_condition = ->
+    index = ready_conditions.length
+    ready_conditions.push false
+    !->
+      ready_conditions[index] = true
+      for condition of ready_conditions
+        return if not condition
+      init!
+
+  Chem.onReady -> new_condition!
+
+  map_is_ready = new_condition!
+  request = new XMLHttpRequest!
+  request.onreadystatechange = !->
+    return unless request.readyState is 4 and request.status is 200
+    map := parse_map request.responseText
+    map_is_ready!
+  request.open "GET", "map.tmx", true
+  request.send!
+
+  parse_map = ->
+    xml = new DOMParser!.parseFromString it, "text/xml"
+    root = xml.getElementsByTagName("map")[0]
+    tilesets = []
+    for tileset of root.getElementsByTagName "tileset"
+      first_gid = parseInt tileset.getAttribute "firstgid"
+      image_tag = tileset.getElementsByTagName("image")[0]
+      image = new Image!
+      image.src = image_tag.getAttribute "source"
+      image.onload = new_condition!
+      tilesets.push([first_gid, image])
+    layers = []
+    for layer_tag of root.getElementsByTagName "layer"
+      width  = parseInt layer_tag.getAttribute "width"
+      height = parseInt layer_tag.getAttribute "height"
+      data_tag = layer_tag.getElementsByTagName("data")[0]
+      if data_tag.getAttribute("compression")
+        alert "can't decompress map. store maps with base64 uncompressed data."
+        return
+      data_string = from_base64 data_tag.textContent.trim!
+      i = 0
+      layers.push layer = []
+      for y from 0 til height
+        layer.push row = []
+        for x from 0 til width
+          tile_value  = data_string.charCodeAt(i++)
+          tile_value |= data_string.charCodeAt(i++) << 8
+          tile_value |= data_string.charCodeAt(i++) << 16
+          tile_value |= data_string.charCodeAt(i++) << 24
+          row.push tile_value
+    return {tilesets, layers}
+
+init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
@@ -42,15 +99,12 @@ Chem.onReady ->
       bodyDef.position.y = center_y
       fixDef.shape.SetAsBox half_size_x, half_size_y
       world.CreateBody(bodyDef).CreateFixture fixDef
-    # outside walls
-    make_wall 15,  0,  15, 0.5
-    make_wall 15, 22,  15, 0.5
-    make_wall  0, 11, 0.5,  11
-    make_wall 30, 11, 0.5,  11
-    # platforms
-    make_wall  9, 11, 8.5, 0.5
-    make_wall 28,  4,   2, 0.5
-    make_wall 28, 18,   2, 0.5
+    # create walls from the map
+    for layer of map.layers
+      for row, y of layer
+        for value, x of row
+          if value is not 0
+            make_wall x+0.5, y+0.5, 0.5, 0.5
 
     # create the man
     bodyDef.type = b2Body.b2_dynamicBody
