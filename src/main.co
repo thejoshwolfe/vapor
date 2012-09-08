@@ -10,10 +10,9 @@ const b2World = Box2D.Dynamics.b2World
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
-world_to_canvas = -> new Chem.Vec2d(it).scale 32
-
 Chem.onReady ->
   const canvas = document.getElementById "game"
+  const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
   const batch = new Chem.Batch!
   const boom = new Chem.Sound 'sfx/boom.ogg'
@@ -116,6 +115,8 @@ Chem.onReady ->
     world.Step dt, 10, 10
     world.ClearForces!
 
+  world_to_canvas = ->
+    new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(32).add(canvas_center)
 
   engine.on 'draw', (context) ->
     # clear canvas to black
