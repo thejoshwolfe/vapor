@@ -117,20 +117,19 @@ init = ->
 
     # create the man
     bodyDef.type = b2Body.b2_dynamicBody
-    fixDef.shape = new b2PolygonShape!
-    fixDef.shape.SetAsBox 0.4, 1.1
     fixDef.restitution = 0.2
     fixDef.friction = 0
-    bodyDef.position.x = 5
-    bodyDef.position.y = 5
+    fixDef.shape = new b2PolygonShape!
+    fixDef.shape.SetAsBox 0.4, 1.1
+    bodyDef.position.x = 40
+    bodyDef.position.y = 40
     bodyDef.fixedRotation = true
     man_body := world.CreateBody bodyDef
     bodyDef.fixedRotation = false
     man_body.SetUserData man_sprite
     man_body.CreateFixture fixDef
 
-    bodyDef.position.x = 5
-    bodyDef.position.y = 5 + 1.1
+    bodyDef.position.y += 1.1
     feet_body := world.CreateBody bodyDef
     fixDef.shape = new b2CircleShape 0.4 - 0.01
     fixDef.restitution = 0
