@@ -13,19 +13,28 @@ const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 map = null
 let
-  ready_conditions = []
-  new_condition = ->
-    index = ready_conditions.length
-    ready_conditions.push false
+  waiting_events = []
+  create_wait_condition = (name) ->
+    index = waiting_events.length
+    waiting_events.push name
     !->
-      ready_conditions[index] = true
-      for condition of ready_conditions
-        return if not condition
-      init!
+      waiting_events[index] = null
+      done = true
+      list = document.getElementById "loading-list"
+      list.innerHTML = ""
+      for event_name of waiting_events
+        continue unless event_name?
+        item = document.createElement "li"
+        item.innerHTML = event_name
+        list.appendChild item
+        done = false
+      if done
+        document.getElementById("loading").setAttribute "style", "display:none;"
+        init!
 
-  Chem.onReady -> new_condition!
+  Chem.onReady create_wait_condition "sprites"
 
-  map_is_ready = new_condition!
+  map_is_ready = create_wait_condition "map"
   request = new XMLHttpRequest!
   request.onreadystatechange = !->
     return unless request.readyState is 4 and request.status is 200
@@ -43,7 +52,7 @@ let
       image_tag = tileset.getElementsByTagName("image")[0]
       image = new Image!
       image.src = image_tag.getAttribute "source"
-      image.onload = new_condition!
+      image.onload = create_wait_condition "tileset"
       tilesets.push([first_gid, image])
     layers = []
     for layer_tag of root.getElementsByTagName "layer"
