@@ -185,7 +185,10 @@ init = ->
 
   const view_scale = 32
   world_to_canvas = ->
-    new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(view_scale).add(canvas_center)
+    in_pixels = new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(view_scale)
+    # snap to integer pixels to prevent seeing cracks between tiles
+    in_pixels.floor!
+    return in_pixels.add(canvas_center)
   get_view_aabb = ->
     result = new b2AABB
     result.lowerBound.x = man_body.m_xf.position.x - canvas_center.x / view_scale
