@@ -8,8 +8,17 @@ const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
 const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 const b2World = Box2D.Dynamics.b2World
+const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
+
+# ugh. make this api more coffee-like
+query_aabb = (world, aabb, callback) ->
+  # callback should be the last parameter
+  actual_callback = (fixture) ->
+    # invert the return value, so that the default case continues
+    !callback fixture
+  world.QueryAABB callback, aabb
 
 map = null
 let
@@ -79,10 +88,8 @@ init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
-  const batch = new Chem.Batch!
   const boom = new Chem.Sound 'sfx/boom.ogg'
   const man_sprite = new Chem.Sprite 'man',
-    batch: batch
     z_order: 1
 
   # GIMME THE FIZZAQS!
@@ -135,7 +142,7 @@ init = ->
     fixDef.restitution = 0
     fixDef.friction = 3
     feet_body.CreateFixture fixDef
-    feet_body.SetUserData new Chem.Sprite 'ship', batch: batch
+    feet_body.SetUserData new Chem.Sprite 'ship'
 
     joint_def = new b2RevoluteJointDef!
     joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
@@ -176,21 +183,32 @@ init = ->
     world.Step dt, 10, 10
     world.ClearForces!
 
+  const view_scale = 32
   world_to_canvas = ->
-    new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(32).add(canvas_center)
+    new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(view_scale).add(canvas_center)
+  get_view_aabb = ->
+    result = new b2AABB
+    result.lowerBound.x = man_body.m_xf.position.x - canvas_center.x / view_scale
+    result.lowerBound.y = man_body.m_xf.position.y - canvas_center.y / view_scale
+    result.upperBound.x = man_body.m_xf.position.x + canvas_center.x / view_scale
+    result.upperBound.y = man_body.m_xf.position.y + canvas_center.y / view_scale
+    result
 
   engine.on 'draw', (context) ->
     # clear canvas to black
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
 
-    body = world.GetBodyList!
-    while body
+    # figure out which bodies to draw
+    sprite_batch = new Chem.Batch!
+    query_aabb world, get_view_aabb!, (fixture) ->
+      body = fixture.GetBody!
       sprite = body.GetUserData!
       if sprite instanceof Chem.Sprite
         # set the positions of sprite
         sprite.pos = world_to_canvas body.m_xf.position
         sprite.rotation = body.m_xf.GetAngle!
+        sprite_batch.add sprite
       else if (fixture = body.GetFixtureList!)?
         # just draw the bounding box
         context.fillStyle = '#ffff66'
@@ -204,8 +222,8 @@ init = ->
         )
       body = body.m_next
 
-    # draw all the sprites
-    engine.draw batch
+    # draw the sprites in front of the above walls
+    engine.draw sprite_batch
 
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
