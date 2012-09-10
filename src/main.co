@@ -148,8 +148,9 @@ init = ->
     joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
     world.CreateJoint joint_def
 
+  is_grounded = null
   engine.on 'update', (dt, dx) ->
-    is_grounded = do ->
+    is_grounded := do ->
       contact_edge = feet_body.GetContactList!
       while contact_edge
         if contact_edge.contact.IsTouching!
@@ -231,6 +232,8 @@ init = ->
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
     engine.drawFps!
+
+    context.fillText "grounded = #{is_grounded}", 100, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
