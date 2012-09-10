@@ -170,7 +170,7 @@ init = ->
 
     # JOMP!
     if is_grounded and engine.buttonJustPressed Chem.Button.Key_Up
-      man_body.ApplyImpulse new b2Vec2(0, -48), man_body.m_xf.position
+      man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
