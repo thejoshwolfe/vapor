@@ -106,20 +106,36 @@ init = ->
     fixture_def.restitution = 0
 
     # create the room
+    # we're going to group horizontal tile neighbors into single rectangular fixtures because:
+    #   it prevents you from bumping along the corners in the ground. see e5022e9137d1b81442d7049e0ff7d4d2d25ab679
+    #   it's more efficient?
+    #   it's pretty easy to implement
     fixture_def.shape = new b2PolygonShape!
-    make_wall = (center_x, center_y, half_size_x, half_size_y) ->
+    stretch_floor_start = null
+    stretch_floor_end = null
+    flush_strech_floor = ->
+      return unless stretch_floor_start?
       body_def = new b2BodyDef!
       body_def.type = b2Body.b2_staticBody
-      body_def.position.x = center_x
-      body_def.position.y = center_y
-      fixture_def.shape.SetAsBox half_size_x, half_size_y
+      body_def.position.x = (stretch_floor_start.x + stretch_floor_end.x) / 2
+      body_def.position.y = (stretch_floor_start.y + stretch_floor_end.y) / 2
+      fixture_def.shape.SetAsBox(
+        (stretch_floor_end.x - stretch_floor_start.x) / 2
+        (stretch_floor_end.y - stretch_floor_start.y) / 2
+      )
       world.CreateBody(body_def).CreateFixture fixture_def
+      stretch_floor_start := null
     # create walls from the map
     for layer of map.layers
       for row, y of layer
         for value, x of row
           if value is not 0
-            make_wall x+0.5, y+0.5, 0.5, 0.5
+            if not stretch_floor_start?
+              stretch_floor_start := new b2Vec2 x, y
+            stretch_floor_end := new b2Vec2 x+1, y+1
+          else
+            flush_strech_floor!
+        flush_strech_floor!
 
     # create the man
     body_def = new b2BodyDef!

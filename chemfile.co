@@ -18,5 +18,4 @@ exports.spritesheet =
       # of files with. if you leave it out entirely, it defaults to the
       # animation name.
       frames: "explosion"
-    ship: {}
     man: {}
