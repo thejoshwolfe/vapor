@@ -95,26 +95,25 @@ init = ->
   # GIMME THE FIZZAQS!
   world = null
   man_body = null
-  feet_body = null
+  feet_fixture = null
   let
     gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
 
-    fixDef = new b2FixtureDef!
-    fixDef.density = 1.0
-    fixDef.friction = 0.5
-    fixDef.restitution = 0
-
-    bodyDef = new b2BodyDef!
+    fixture_def = new b2FixtureDef!
+    fixture_def.density = 1.0
+    fixture_def.friction = 0.5
+    fixture_def.restitution = 0
 
     # create the room
-    bodyDef.type = b2Body.b2_staticBody
-    fixDef.shape = new b2PolygonShape!
+    fixture_def.shape = new b2PolygonShape!
     make_wall = (center_x, center_y, half_size_x, half_size_y) ->
-      bodyDef.position.x = center_x
-      bodyDef.position.y = center_y
-      fixDef.shape.SetAsBox half_size_x, half_size_y
-      world.CreateBody(bodyDef).CreateFixture fixDef
+      body_def = new b2BodyDef!
+      body_def.type = b2Body.b2_staticBody
+      body_def.position.x = center_x
+      body_def.position.y = center_y
+      fixture_def.shape.SetAsBox half_size_x, half_size_y
+      world.CreateBody(body_def).CreateFixture fixture_def
     # create walls from the map
     for layer of map.layers
       for row, y of layer
@@ -123,54 +122,47 @@ init = ->
             make_wall x+0.5, y+0.5, 0.5, 0.5
 
     # create the man
-    bodyDef.type = b2Body.b2_dynamicBody
-    fixDef.restitution = 0.2
-    fixDef.friction = 0
-    fixDef.shape = new b2PolygonShape!
-    fixDef.shape.SetAsBox 0.4, 1.1
-    bodyDef.position.x = 40
-    bodyDef.position.y = 40
-    bodyDef.fixedRotation = true
-    man_body := world.CreateBody bodyDef
-    bodyDef.fixedRotation = false
+    body_def = new b2BodyDef!
+    body_def.type = b2Body.b2_dynamicBody
+    body_def.position.x = 40
+    body_def.position.y = 43
+    body_def.fixedRotation = true
+    man_body := world.CreateBody body_def
     man_body.SetUserData man_sprite
-    man_body.CreateFixture fixDef
+    fixture_def.friction = 0
+    fixture_def.shape = new b2PolygonShape!
+    fixture_def.shape.SetAsBox 0.4, 1.1
+    man_body.CreateFixture fixture_def
 
-    bodyDef.position.y += 1.1
-    feet_body := world.CreateBody bodyDef
-    fixDef.shape = new b2CircleShape 0.4 - 0.01
-    fixDef.restitution = 0
-    fixDef.friction = 3
-    feet_body.CreateFixture fixDef
-    feet_body.SetUserData new Chem.Sprite 'ship'
+    body_def.position.y += 1.1
+    fixture_def.shape = new b2CircleShape 0.4 - 0.01
+    fixture_def.shape.m_p.y += 1.1
+    fixture_def.friction = 3
+    feet_fixture := man_body.CreateFixture fixture_def
 
-    joint_def = new b2RevoluteJointDef!
-    joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
-    world.CreateJoint joint_def
-
-  is_grounded = null
+  ground_fixture = null
   engine.on 'update', (dt, dx) ->
-    is_grounded := do ->
-      contact_edge = feet_body.GetContactList!
+    ground_fixture := do ->
+      contact_edge = man_body.GetContactList!
       while contact_edge
         if contact_edge.contact.IsTouching!
-          return true
+          fixtures = [contact_edge.contact.GetFixtureA!, contact_edge.contact.GetFixtureB!]
+          for fixture, i of fixtures
+            if feet_fixture is fixture
+              return fixtures[1 - i]
         contact_edge = contact_edge.next
-      false
+      null
 
     # left/right
-    const rotation_speed = 30
-    angular_velocity = 0
-    if engine.buttonState Chem.Button.Key_Left
-      angular_velocity -= rotation_speed
-    if engine.buttonState Chem.Button.Key_Right
-      angular_velocity += rotation_speed
-    feet_body.SetAngularVelocity angular_velocity
-    feet_body.SetFixedRotation angular_velocity is 0
-    feet_body.SetAwake true
+    horizontal_power = 3
+    horizontal_power = 0.25 unless ground_fixture?
+    horizontal_intention = 0
+    horizontal_intention-- if engine.buttonState Chem.Button.Key_Left
+    horizontal_intention++ if engine.buttonState Chem.Button.Key_Right
+    man_body.ApplyImpulse new b2Vec2(horizontal_intention * horizontal_power, 0), man_body.m_xf.position
 
     # JOMP!
-    if is_grounded and engine.buttonJustPressed Chem.Button.Key_Up
+    if ground_fixture? and engine.buttonJustPressed Chem.Button.Key_Up
       man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
 
     # press space to blow yourself up
@@ -233,7 +225,7 @@ init = ->
     context.fillStyle = '#ffffff'
     engine.drawFps!
 
-    context.fillText "grounded = #{is_grounded}", 100, canvas_center.y * 2
+    context.fillText "grounded = #{ground_fixture?}", 100, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
