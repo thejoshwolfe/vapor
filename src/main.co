@@ -93,11 +93,12 @@ init = ->
     z_order: 1
 
   # GIMME THE FIZZAQS!
+  gravity = null
   world = null
   man_body = null
   feet_fixture = null
   let
-    gravity = new b2Vec2 0, 30
+    gravity := new b2Vec2 0, 30
     world := new b2World gravity, true
 
     fixture_def = new b2FixtureDef!
@@ -157,6 +158,7 @@ init = ->
     feet_fixture := man_body.CreateFixture fixture_def
 
   ground_fixture = null
+  jumping_duration_remaining = null
   engine.on 'update', (dt, dx) ->
     ground_fixture := do ->
       contact_edge = man_body.GetContactList!
@@ -178,8 +180,20 @@ init = ->
     man_body.ApplyImpulse new b2Vec2(horizontal_intention * horizontal_power, 0), man_body.m_xf.position
 
     # JOMP!
-    if ground_fixture? and engine.buttonJustPressed Chem.Button.Key_Up
-      man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
+    jump_button = Chem.Button.Key_Up
+    if ground_fixture? and engine.buttonJustPressed jump_button
+      man_body.ApplyImpulse new b2Vec2(0, -31), man_body.m_xf.position
+      jumping_duration_remaining := 0.2
+    if jumping_duration_remaining? and not engine.buttonState jump_button
+      jumping_duration_remaining := null
+    if jumping_duration_remaining?
+      # stop that gravity
+      force = gravity.Copy!
+      force.Multiply man_body.GetMass!
+      force.NegativeSelf!
+      man_body.ApplyForce force, man_body.m_xf.position
+      jumping_duration_remaining -= dt
+      jumping_duration_remaining := null if jumping_duration_remaining <= 0
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
@@ -240,8 +254,8 @@ init = ->
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
     engine.drawFps!
-
     context.fillText "grounded = #{ground_fixture?}", 100, canvas_center.y * 2
+    context.fillText "jump remaining = #{jumping_duration_remaining}", 200, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
