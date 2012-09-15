@@ -158,7 +158,6 @@ init = ->
     feet_fixture := man_body.CreateFixture fixture_def
 
   ground_fixture = null
-  jumping_duration_remaining = null
   engine.on 'update', (dt, dx) ->
     ground_fixture := do ->
       contact_edge = man_body.GetContactList!
@@ -182,18 +181,11 @@ init = ->
     # JOMP!
     jump_button = Chem.Button.Key_Up
     if ground_fixture? and engine.buttonJustPressed jump_button
-      man_body.ApplyImpulse new b2Vec2(0, -31), man_body.m_xf.position
-      jumping_duration_remaining := 0.2
-    if jumping_duration_remaining? and not engine.buttonState jump_button
-      jumping_duration_remaining := null
-    if jumping_duration_remaining?
-      # stop that gravity
-      force = gravity.Copy!
-      force.Multiply man_body.GetMass!
-      force.NegativeSelf!
-      man_body.ApplyForce force, man_body.m_xf.position
-      jumping_duration_remaining -= dt
-      jumping_duration_remaining := null if jumping_duration_remaining <= 0
+      man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
+    man_velocity = man_body.GetLinearVelocity!
+    const jump_stop = -9
+    if not engine.buttonState jump_button and man_velocity.y < jump_stop
+      man_velocity.y = jump_stop
 
     # press space to blow yourself up
     if engine.buttonJustPressed Chem.Button.Key_Space
@@ -255,7 +247,6 @@ init = ->
     context.fillStyle = '#ffffff'
     engine.drawFps!
     context.fillText "grounded = #{ground_fixture?}", 100, canvas_center.y * 2
-    context.fillText "jump remaining = #{jumping_duration_remaining}", 200, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
