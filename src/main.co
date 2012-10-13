@@ -88,17 +88,15 @@ init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
-  const boom = new Chem.Sound 'sfx/boom.ogg'
   const man_sprite = new Chem.Sprite 'man',
     z_order: 1
 
   # GIMME THE FIZZAQS!
-  gravity = null
   world = null
   man_body = null
   feet_body = null
   let
-    gravity := new b2Vec2 0, 30
+    gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
 
     fixture_def = new b2FixtureDef!
@@ -158,7 +156,7 @@ init = ->
     fixture_def.restitution = 0
     fixture_def.friction = 3
     feet_body.CreateFixture fixture_def
-    feet_body.SetUserData new Chem.Sprite 'ship'
+    # feet_body.SetUserData new Chem.Sprite 'ship'
 
     joint_def = new b2RevoluteJointDef!
     joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
@@ -194,20 +192,12 @@ init = ->
       man_body.ApplyImpulse new b2Vec2(0.25 * horizontal_intention, 0), man_body.m_xf.position
 
     # JOMP!
-    jump_button = Chem.Button.Key_Up
+    jump_button = Chem.Button.Key_Space
     if is_grounded and engine.buttonJustPressed jump_button
       man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
-    const jump_stop = -9
+    const jump_stop = -5
     if not engine.buttonState jump_button and man_velocity.y < jump_stop
       man_velocity.y = jump_stop
-
-    # press space to blow yourself up
-    if engine.buttonJustPressed Chem.Button.Key_Space
-      boom.play!
-      man_sprite.setAnimationName 'boom'
-      man_sprite.setFrameIndex 0
-      man_sprite.on 'animation_end', ->
-        man_sprite.delete!
 
     world.Step dt, 10, 10
     world.ClearForces!
