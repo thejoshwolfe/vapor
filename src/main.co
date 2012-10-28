@@ -8,6 +8,7 @@ const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
 const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 const b2World = Box2D.Dynamics.b2World
+const b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
@@ -92,12 +93,23 @@ init = ->
     z_order: 1
 
   # GIMME THE FIZZAQS!
+  const view_scale = 32
   world = null
+  debugDrawer = null
+  debugDrawing = true
   man_body = null
   feet_body = null
   let
     gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
+
+    debugDrawer := new b2DebugDraw()
+    debugDrawer.SetSprite canvas.getContext "2d"
+    debugDrawer.SetDrawScale view_scale
+    debugDrawer.SetFillAlpha 0.5
+    debugDrawer.SetLineThickness 1
+    debugDrawer.SetFlags b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit
+    world.SetDebugDraw debugDrawer
 
     fixture_def = new b2FixtureDef!
     fixture_def.density = 1.0
@@ -164,6 +176,9 @@ init = ->
 
   is_grounded = null
   engine.on 'update', (dt, dx) ->
+
+    debugDrawing := !debugDrawing if engine.buttonJustPressed Chem.Button.Key_Grave
+
     is_grounded := do ->
       contact_edge = feet_body.GetContactList!
       while contact_edge
@@ -202,7 +217,6 @@ init = ->
     world.Step dt, 10, 10
     world.ClearForces!
 
-  const view_scale = 32
   world_to_canvas = ->
     in_pixels = new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(view_scale)
     # snap to integer pixels to prevent seeing cracks between tiles
@@ -221,31 +235,39 @@ init = ->
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
 
-    # figure out which bodies to draw
-    sprite_batch = new Chem.Batch!
-    query_aabb world, get_view_aabb!, (fixture) ->
-      body = fixture.GetBody!
-      sprite = body.GetUserData!
-      if sprite instanceof Chem.Sprite
-        # set the positions of sprite
-        sprite.pos = world_to_canvas body.m_xf.position
-        sprite.rotation = body.m_xf.GetAngle!
-        sprite_batch.add sprite
-      else if (fixture = body.GetFixtureList!)?
-        # just draw the bounding box
-        context.fillStyle = '#ffff66'
-        lower_bound = world_to_canvas fixture.GetAABB!.lowerBound
-        upper_bound = world_to_canvas fixture.GetAABB!.upperBound
-        context.fillRect(
-          lower_bound.x
-          lower_bound.y
-          upper_bound.x - lower_bound.x
-          upper_bound.y - lower_bound.y
-        )
-      body = body.m_next
+    if debugDrawing
+      context.save!
+      center = world_to_canvas new Chem.Vec2d 0, 0
+      context.translate center.x, center.y
+      world.DrawDebugData!
+      context.restore!
 
-    # draw the sprites in front of the above walls
-    engine.draw sprite_batch
+    else
+      # figure out which bodies to draw
+      sprite_batch = new Chem.Batch!
+      query_aabb world, get_view_aabb!, (fixture) ->
+        body = fixture.GetBody!
+        sprite = body.GetUserData!
+        if sprite instanceof Chem.Sprite
+          # set the positions of sprite
+          sprite.pos = world_to_canvas body.m_xf.position
+          sprite.rotation = body.m_xf.GetAngle!
+          sprite_batch.add sprite
+        else if (fixture = body.GetFixtureList!)?
+          # just draw the bounding box
+          context.fillStyle = '#ffff66'
+          lower_bound = world_to_canvas fixture.GetAABB!.lowerBound
+          upper_bound = world_to_canvas fixture.GetAABB!.upperBound
+          context.fillRect(
+            lower_bound.x
+            lower_bound.y
+            upper_bound.x - lower_bound.x
+            upper_bound.y - lower_bound.y
+          )
+        body = body.m_next
+
+      # draw the sprites in front of the above walls
+      engine.draw sprite_batch
 
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
