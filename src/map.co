@@ -1,9 +1,9 @@
 const from_base64 = atob or alert "this browser can't decode base64 data"
 
-const flipped_horizontally_flag = 0x80000000
-const flipped_vertically_flag   = 0x40000000
-const flipped_diagonally_flag   = 0x20000000
-const imageid_mask              = 0x1fffffff
+const flip_horizontal_flag = 0x80000000
+const flip_vertical_flag   = 0x40000000
+const flip_diagonal_flag   = 0x20000000
+const imageid_mask         = 0x1fffffff
 
 window.Map = class Map
   ~>
@@ -13,14 +13,34 @@ window.Map = class Map
   draw_tile: (context, x, y) ->
     tile = @tile 0, x, y
     return if tile is 0
+
+    flip_horizontal = !!(tile & flip_horizontal_flag)
+    flip_vertical = !!(tile & flip_vertical_flag)
+    flip_diagonal = !!(tile & flip_diagonal_flag)
+    rotation = 0
+    if flip_diagonal
+      rotation += Math.PI / 2
+      !=flip_horizontal
+
     imageid = tile & imageid_mask
     for tileset of @tilesets
       image_bounds = tileset.image_bounds imageid
       break if image_bounds?
+
+    context.save!
+    half_width = image_bounds.width / 2
+    half_height = image_bounds.height / 2
+    context.translate x * @scale + half_width, y * @scale + half_height
+    context.scale(
+      if flip_horizontal then -1 else 1
+      if flip_vertical then -1 else 1
+    )
+    context.rotate rotation
     context.drawImage(tileset.image
       image_bounds.x, image_bounds.y, image_bounds.width, image_bounds.height
-      x * @scale,     y * @scale,     image_bounds.width, image_bounds.height
+      -half_width,    -half_height,   image_bounds.width, image_bounds.height
     )
+    context.restore!
 
 Map.Tileset = class Tileset
   image_bounds: (imageid) ->

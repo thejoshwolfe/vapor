@@ -64,21 +64,21 @@ init = ->
   # GIMME THE FIZZAQS!
   const view_scale = map.scale
   world = null
-  debugDrawer = null
-  debugDrawing = true
+  debug_drawer = null
+  debug_drawing = false
   man_body = null
   feet_body = null
   let
     gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
 
-    debugDrawer := new b2DebugDraw()
-    debugDrawer.SetSprite canvas.getContext "2d"
-    debugDrawer.SetDrawScale view_scale
-    debugDrawer.SetFillAlpha 0.5
-    debugDrawer.SetLineThickness 1
-    debugDrawer.SetFlags b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit
-    world.SetDebugDraw debugDrawer
+    debug_drawer := new b2DebugDraw()
+    debug_drawer.SetSprite canvas.getContext "2d"
+    debug_drawer.SetDrawScale view_scale
+    debug_drawer.SetFillAlpha 0.5
+    debug_drawer.SetLineThickness 1
+    debug_drawer.SetFlags b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit
+    world.SetDebugDraw debug_drawer
 
     fixture_def = new b2FixtureDef!
     fixture_def.density = 1.0
@@ -146,7 +146,7 @@ init = ->
   is_grounded = null
   engine.on 'update', (dt, dx) ->
 
-    debugDrawing := !debugDrawing if engine.buttonJustPressed Chem.Button.Key_Grave
+    debug_drawing := !debug_drawing if engine.buttonJustPressed Chem.Button.Key_Grave
 
     is_grounded := do ->
       contact_edge = feet_body.GetContactList!
@@ -207,7 +207,7 @@ init = ->
     let center = world_to_canvas(new Chem.Vec2d man_body.m_xf.position).sub canvas_center
       context.translate -center.x, -center.y
 
-    if debugDrawing
+    if debug_drawing
       world.DrawDebugData!
     else
       # draw the map first
