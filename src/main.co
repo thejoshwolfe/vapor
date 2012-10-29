@@ -56,15 +56,18 @@ let
   parse_map = ->
     xml = new DOMParser!.parseFromString it, "text/xml"
     root = xml.getElementsByTagName("map")[0]
-    tilesets = []
+    class Map
+      ~>
+        @tilesets = []
+        @layers = []
+    map = new Map!
     for tileset of root.getElementsByTagName "tileset"
       first_gid = parseInt tileset.getAttribute "firstgid"
       image_tag = tileset.getElementsByTagName("image")[0]
       image = new Image!
       image.src = image_tag.getAttribute "source"
       image.onload = create_wait_condition "tileset"
-      tilesets.push([first_gid, image])
-    layers = []
+      map.tilesets.push([first_gid, image])
     for layer_tag of root.getElementsByTagName "layer"
       width  = parseInt layer_tag.getAttribute "width"
       height = parseInt layer_tag.getAttribute "height"
@@ -74,7 +77,7 @@ let
         return
       data_string = from_base64 data_tag.textContent.trim!
       i = 0
-      layers.push layer = []
+      map.layers.push layer = []
       for y from 0 til height
         layer.push row = []
         for x from 0 til width
@@ -83,7 +86,7 @@ let
           tile_value |= data_string.charCodeAt(i++) << 16
           tile_value |= data_string.charCodeAt(i++) << 24
           row.push tile_value
-    return {tilesets, layers}
+    return map
 
 init = ->
   const canvas = document.getElementById "game"
