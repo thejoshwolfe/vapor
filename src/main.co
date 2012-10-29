@@ -1,6 +1,5 @@
 #depend "chem"
-
-const from_base64 = atob or alert "this browser can't decode base64 data"
+#depend "map"
 
 const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2BodyDef = Box2D.Dynamics.b2BodyDef
@@ -48,45 +47,12 @@ let
   request = new XMLHttpRequest!
   request.onreadystatechange = !->
     return unless request.readyState is 4 and request.status is 200
-    map := parse_map request.responseText
+    map := Map.parse request.responseText, create_wait_condition
     map_is_ready!
   request.open "GET", "map.tmx", true
   request.send!
 
   parse_map = ->
-    xml = new DOMParser!.parseFromString it, "text/xml"
-    root = xml.getElementsByTagName("map")[0]
-    class Map
-      ~>
-        @tilesets = []
-        @layers = []
-    map = new Map!
-    for tileset of root.getElementsByTagName "tileset"
-      first_gid = parseInt tileset.getAttribute "firstgid"
-      image_tag = tileset.getElementsByTagName("image")[0]
-      image = new Image!
-      image.src = image_tag.getAttribute "source"
-      image.onload = create_wait_condition "tileset"
-      map.tilesets.push([first_gid, image])
-    for layer_tag of root.getElementsByTagName "layer"
-      width  = parseInt layer_tag.getAttribute "width"
-      height = parseInt layer_tag.getAttribute "height"
-      data_tag = layer_tag.getElementsByTagName("data")[0]
-      if data_tag.getAttribute("compression")
-        alert "can't decompress map. store maps with base64 uncompressed data."
-        return
-      data_string = from_base64 data_tag.textContent.trim!
-      i = 0
-      map.layers.push layer = []
-      for y from 0 til height
-        layer.push row = []
-        for x from 0 til width
-          tile_value  = data_string.charCodeAt(i++)
-          tile_value |= data_string.charCodeAt(i++) << 8
-          tile_value |= data_string.charCodeAt(i++) << 16
-          tile_value |= data_string.charCodeAt(i++) << 24
-          row.push tile_value
-    return map
 
 init = ->
   const canvas = document.getElementById "game"
@@ -96,7 +62,7 @@ init = ->
     z_order: 1
 
   # GIMME THE FIZZAQS!
-  const view_scale = 32
+  const view_scale = map.scale
   world = null
   debugDrawer = null
   debugDrawing = true
@@ -221,10 +187,10 @@ init = ->
     world.ClearForces!
 
   world_to_canvas = ->
-    in_pixels = new Chem.Vec2d(it).sub(man_body.m_xf.position).scale(view_scale)
+    in_pixels = new Chem.Vec2d(it).scale(view_scale)
     # snap to integer pixels to prevent seeing cracks between tiles
     in_pixels.floor!
-    return in_pixels.add(canvas_center)
+    return in_pixels
   get_view_aabb = ->
     result = new b2AABB
     result.lowerBound.x = man_body.m_xf.position.x - canvas_center.x / view_scale
@@ -237,18 +203,22 @@ init = ->
     # clear canvas to black
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
+    context.save!
+    let center = world_to_canvas(new Chem.Vec2d man_body.m_xf.position).sub canvas_center
+      context.translate -center.x, -center.y
 
     if debugDrawing
-      context.save!
-      center = world_to_canvas new Chem.Vec2d 0, 0
-      context.translate center.x, center.y
       world.DrawDebugData!
-      context.restore!
-
     else
+      # draw the map first
+      view_aabb = get_view_aabb!
+      for y from Math.floor(view_aabb.lowerBound.y) to Math.ceil(view_aabb.upperBound.y)
+        for x from Math.floor(view_aabb.lowerBound.x) to Math.ceil(view_aabb.upperBound.x)
+          map.draw_tile context, x, y
+
       # figure out which bodies to draw
       sprite_batch = new Chem.Batch!
-      query_aabb world, get_view_aabb!, (fixture) ->
+      query_aabb world, view_aabb, (fixture) ->
         body = fixture.GetBody!
         sprite = body.GetUserData!
         if sprite instanceof Chem.Sprite
@@ -256,22 +226,12 @@ init = ->
           sprite.pos = world_to_canvas body.m_xf.position
           sprite.rotation = body.m_xf.GetAngle!
           sprite_batch.add sprite
-        else if (fixture = body.GetFixtureList!)?
-          # just draw the bounding box
-          context.fillStyle = '#ffff66'
-          lower_bound = world_to_canvas fixture.GetAABB!.lowerBound
-          upper_bound = world_to_canvas fixture.GetAABB!.upperBound
-          context.fillRect(
-            lower_bound.x
-            lower_bound.y
-            upper_bound.x - lower_bound.x
-            upper_bound.y - lower_bound.y
-          )
         body = body.m_next
 
       # draw the sprites in front of the above walls
       engine.draw sprite_batch
 
+    context.restore!
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
     engine.drawFps!
