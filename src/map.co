@@ -9,9 +9,15 @@ window.Map = class Map
   ~>
     @tilesets = []
     @layers = []
+    @objects = []
   tile: (layer, x, y) -> @layers[layer][y]?[x] ? 0
-  draw_tile: (context, x, y) ->
-    tile = @tile 0, x, y
+  draw_tiles: (context, view_aabb) ->
+    for layer_index from 0 til @layers.length
+      for y from Math.floor(view_aabb.lowerBound.y) to Math.ceil(view_aabb.upperBound.y)
+        for x from Math.floor(view_aabb.lowerBound.x) to Math.ceil(view_aabb.upperBound.x)
+          @draw_tile context, layer_index, x, y
+  draw_tile: (context, layer_index, x, y) ->
+    tile = @tile layer_index, x, y
     return if tile is 0
 
     flip_horizontal = !!(tile & flip_horizontal_flag)
@@ -76,6 +82,7 @@ Map.parse = (text, create_wait_condition) ->
     tileset.height = parseInt image_element.getAttribute "height"
     map.tilesets.push tileset
   for layer_element of root.getElementsByTagName "layer"
+    name = layer_element.getAttribute "name"
     width  = parseInt layer_element.getAttribute "width"
     height = parseInt layer_element.getAttribute "height"
     data_element = layer_element.getElementsByTagName("data")[0]
@@ -93,4 +100,19 @@ Map.parse = (text, create_wait_condition) ->
         tile_value |= data_string.charCodeAt(i++) << 16
         tile_value |= data_string.charCodeAt(i++) << 24
         row.push tile_value
+    if name is "physics"
+      map.physics_layer = layer
+  for objectgroup_element of root.getElementsByTagName "objectgroup"
+    for object_element of objectgroup_element.getElementsByTagName "object"
+      properties = {}
+      for properties_element of object_element.getElementsByTagName "properties"
+        for property_element of properties_element.getElementsByTagName "property"
+          properties[property_element.getAttribute "name"] = property_element.getAttribute "value"
+      map.objects.push(
+        x: parseInt object_element.getAttribute "x"
+        y: parseInt object_element.getAttribute "y"
+        width: parseInt object_element.getAttribute "width"
+        height: parseInt object_element.getAttribute "height"
+        properties: properties
+      )
   map

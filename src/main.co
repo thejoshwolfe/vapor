@@ -20,6 +20,14 @@ query_aabb = (world, aabb, callback) ->
     !callback fixture
   world.QueryAABB callback, aabb
 
+make_aabb = (x1, y1, x2, y2) ->
+  result = new b2AABB!
+  result.lowerBound.x = x1
+  result.lowerBound.y = y1
+  result.upperBound.x = x2
+  result.upperBound.y = y2
+  result
+
 map = null
 let
   waiting_events = []
@@ -60,16 +68,17 @@ init = ->
   const engine = new Chem.Engine canvas
   const man_sprite = new Chem.Sprite 'man',
     z_order: 1
+  const gravity = new b2Vec2 0, 30
 
   # GIMME THE FIZZAQS!
   const view_scale = map.scale
   world = null
+  gravity_scale_zones = []
   debug_drawer = null
   debug_drawing = false
   man_body = null
   feet_body = null
   let
-    gravity = new b2Vec2 0, 30
     world := new b2World gravity, true
 
     debug_drawer := new b2DebugDraw()
@@ -106,16 +115,26 @@ init = ->
       world.CreateBody(body_def).CreateFixture fixture_def
       stretch_floor_start := null
     # create walls from the map
-    for layer of map.layers
-      for row, y of layer
-        for value, x of row
-          if value is not 0
-            if not stretch_floor_start?
-              stretch_floor_start := new b2Vec2 x, y
-            stretch_floor_end := new b2Vec2 x+1, y+1
-          else
-            flush_strech_floor!
-        flush_strech_floor!
+    for row, y of map.physics_layer
+      for value, x of row
+        if value is not 0
+          if not stretch_floor_start?
+            stretch_floor_start := new b2Vec2 x, y
+          stretch_floor_end := new b2Vec2 x+1, y+1
+        else
+          flush_strech_floor!
+      flush_strech_floor!
+    for object of map.objects
+      if (gravity_scale = object.properties.gravity_scale)?
+        gravity_scale_zones.push(
+          scale: gravity_scale
+          aabb: make_aabb(
+            object.x / map.scale
+            object.y / map.scale
+            (object.x + object.width) / map.scale
+            (object.y + object.height) / map.scale
+          )
+        )
 
     # create the man
     body_def = new b2BodyDef!
@@ -175,6 +194,14 @@ init = ->
       # magic acceleration
       man_body.ApplyImpulse new b2Vec2(0.25 * horizontal_intention, 0), man_body.m_xf.position
 
+    # notice gravity scales
+    world.SetGravity gravity
+    for {scale, aabb} of gravity_scale_zones
+      if aabb.TestOverlap man_body.GetFixtureList!.GetAABB!
+        scaled_gravity = gravity.Copy!
+        scaled_gravity.Multiply scale
+        world.SetGravity scaled_gravity
+
     # JOMP!
     jump_button = Chem.Button.Key_Space
     if is_grounded and engine.buttonJustPressed jump_button
@@ -192,12 +219,12 @@ init = ->
     in_pixels.floor!
     return in_pixels
   get_view_aabb = ->
-    result = new b2AABB
-    result.lowerBound.x = man_body.m_xf.position.x - canvas_center.x / view_scale
-    result.lowerBound.y = man_body.m_xf.position.y - canvas_center.y / view_scale
-    result.upperBound.x = man_body.m_xf.position.x + canvas_center.x / view_scale
-    result.upperBound.y = man_body.m_xf.position.y + canvas_center.y / view_scale
-    result
+    make_aabb(
+      man_body.m_xf.position.x - canvas_center.x / view_scale
+      man_body.m_xf.position.y - canvas_center.y / view_scale
+      man_body.m_xf.position.x + canvas_center.x / view_scale
+      man_body.m_xf.position.y + canvas_center.y / view_scale
+    )
 
   engine.on 'draw', (context) ->
     # clear canvas to black
@@ -212,9 +239,7 @@ init = ->
     else
       # draw the map first
       view_aabb = get_view_aabb!
-      for y from Math.floor(view_aabb.lowerBound.y) to Math.ceil(view_aabb.upperBound.y)
-        for x from Math.floor(view_aabb.lowerBound.x) to Math.ceil(view_aabb.upperBound.x)
-          map.draw_tile context, x, y
+      map.draw_tiles context, view_aabb
 
       # figure out which bodies to draw
       sprite_batch = new Chem.Batch!
