@@ -11,7 +11,6 @@ const b2World = Box2D.Dynamics.b2World
 const b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
-const b2EdgeShape = Box2D.Collision.Shapes.b2EdgeShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 # ugh. make this api more coffee-like
@@ -118,48 +117,36 @@ init = ->
     fixture_def.restitution = 0
 
     # create the room
-    let
-      # we create the physics of the walls as the outlines.
-      # this prevents you from bumping along the corners in the ground.
-      # see e5022e9137d1b81442d7049e0ff7d4d2d25ab679
-      endpoint_to_line = {}
-      tile_value_at = (x, y) -> (map.layers[y] ? [])[x] ? 0
-      add_segment = (x1, y1, x2, y2) ->
-        atan2 = Math.atan2 y2 - y1, x2 - x1
-        old_key = [x1,y1].toString!
-        new_key = [x2,y2].toString!
-        existing_lines = endpoint_to_line[old_key] ? []
-        for existing_line of existing_lines
-          if existing_line.atan2 is not atan2
-            continue
-          # extend existing line
-          delete endpoint_to_line[old_key]
-          existing_line.x2 = x2
-          existing_line.y2 = y2
-          endpoint_to_line[new_key] = existing_line
-          return
-        endpoint_to_line[new_key] = {x1,y1,x2,y2}
-      # create walls from the map
-      for layer of map.layers
-        # overshoot by 1
-        for y from 0 to layer.length
-          for x from 0 to layer[0].length
-            if (tile_value_at(x, y) is not 0) is not (tile_value_at(x, y-1) is not 0)
-              add_segment x, y, x+1, y
-            if (tile_value_at(x, y) is not 0) is not (tile_value_at(x-1, y) is not 0)
-              add_segment x, y, x, y+1
-
-      for _, line in endpoint_to_line
-        body_def = new b2BodyDef!
-        body_def.type = b2Body.b2_staticBody
-        body_def.position.x = (line.x1 + line.x2) / 2
-        body_def.position.y = (line.y1 + line.y2) / 2
-        # can't use b2EdgeShape, because it's not implemented. See https://code.google.com/p/box2dweb/issues/detail?id=31
-        fixture_def.shape = new b2EdgeShape(
-          new b2Vec2 line.x1, line.y1
-          new b2Vec2 line.x2, line.y2
-        )
-        world.CreateBody(body_def).CreateFixture fixture_def
+    # we're going to group horizontal tile neighbors into single rectangular fixtures because:
+    #   it prevents you from bumping along the corners in the ground. see e5022e9137d1b81442d7049e0ff7d4d2d25ab679
+    #   it's more efficient?
+    #   it's pretty easy to implement
+    fixture_def.shape = new b2PolygonShape!
+    stretch_floor_start = null
+    stretch_floor_end = null
+    flush_strech_floor = ->
+      return unless stretch_floor_start?
+      body_def = new b2BodyDef!
+      body_def.type = b2Body.b2_staticBody
+      body_def.position.x = (stretch_floor_start.x + stretch_floor_end.x) / 2
+      body_def.position.y = (stretch_floor_start.y + stretch_floor_end.y) / 2
+      fixture_def.shape.SetAsBox(
+        (stretch_floor_end.x - stretch_floor_start.x) / 2
+        (stretch_floor_end.y - stretch_floor_start.y) / 2
+      )
+      world.CreateBody(body_def).CreateFixture fixture_def
+      stretch_floor_start := null
+    # create walls from the map
+    for layer of map.layers
+      for row, y of layer
+        for value, x of row
+          if value is not 0
+            if not stretch_floor_start?
+              stretch_floor_start := new b2Vec2 x, y
+            stretch_floor_end := new b2Vec2 x+1, y+1
+          else
+            flush_strech_floor!
+        flush_strech_floor!
 
     # create the man
     body_def = new b2BodyDef!
