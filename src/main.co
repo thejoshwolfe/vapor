@@ -192,7 +192,7 @@ init = ->
     magic_max_velocity = 0.8 * feet_max_velocity
     if horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity
       # magic acceleration
-      man_body.ApplyImpulse new b2Vec2(0.25 * horizontal_intention, 0), man_body.m_xf.position
+      man_body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man_body.m_xf.position
 
     # notice gravity scales
     world.SetGravity gravity
