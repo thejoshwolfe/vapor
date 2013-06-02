@@ -76,10 +76,11 @@ init = ->
   debug_drawer = null
   debug_drawing = false
   man =
-    torso_body: null
-    feet_body: null
+    body: null
+    feet_fixture: null
     standing_sprite: new Chem.Sprite 'man_stand', z_order: 1
     crouching_sprite: new Chem.Sprite 'man_crouch', z_order: 1
+  window?._debug_man = man
   let
     world := new b2World gravity, true
 
@@ -91,114 +92,136 @@ init = ->
     debug_drawer.SetFlags b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit
     world.SetDebugDraw debug_drawer
 
-    fixture_def = new b2FixtureDef!
-    fixture_def.density = 1.0
-    fixture_def.friction = 0.5
-    fixture_def.restitution = 0
-
     # create the room
-    # we're going to group horizontal tile neighbors into single rectangular fixtures because:
-    #   it prevents you from bumping along the corners in the ground. see e5022e9137d1b81442d7049e0ff7d4d2d25ab679
-    #   it's more efficient?
-    #   it's pretty easy to implement
-    fixture_def.shape = new b2PolygonShape!
-    stretch_floor_start = null
-    stretch_floor_end = null
-    flush_strech_floor = ->
-      return unless stretch_floor_start?
-      body_def = new b2BodyDef!
-      body_def.type = b2Body.b2_staticBody
-      body_def.position.x = (stretch_floor_start.x + stretch_floor_end.x) / 2
-      body_def.position.y = (stretch_floor_start.y + stretch_floor_end.y) / 2
-      fixture_def.shape.SetAsBox(
-        (stretch_floor_end.x - stretch_floor_start.x) / 2
-        (stretch_floor_end.y - stretch_floor_start.y) / 2
-      )
-      world.CreateBody(body_def).CreateFixture fixture_def
-      stretch_floor_start := null
-    # create walls from the map
-    for row, y of map.physics_layer
-      for value, x of row
-        if value is not 0
-          if not stretch_floor_start?
-            stretch_floor_start := new b2Vec2 x, y
-          stretch_floor_end := new b2Vec2 x+1, y+1
-        else
-          flush_strech_floor!
-      flush_strech_floor!
-    for object of map.objects
-      if (gravity_scale = object.properties.gravity_scale)?
-        gravity_scale_zones.push(
-          scale: gravity_scale
-          aabb: make_aabb(
-            object.x / map.scale
-            object.y / map.scale
-            (object.x + object.width) / map.scale
-            (object.y + object.height) / map.scale
-          )
+    do
+      # we're going to group horizontal tile neighbors into single rectangular fixtures because:
+      #   it prevents you from bumping along the corners in the ground. see e5022e9137d1b81442d7049e0ff7d4d2d25ab679
+      #   it's more efficient?
+      #   it's pretty easy to implement
+      fixture_def = new b2FixtureDef!
+      fixture_def.density = 1.0
+      fixture_def.friction = 0.5
+      fixture_def.restitution = 0
+      fixture_def.shape = new b2PolygonShape!
+      stretch_floor_start = null
+      stretch_floor_end = null
+      flush_strech_floor = ->
+        return unless stretch_floor_start?
+        body_def = new b2BodyDef!
+        body_def.type = b2Body.b2_staticBody
+        body_def.position.x = (stretch_floor_start.x + stretch_floor_end.x) / 2
+        body_def.position.y = (stretch_floor_start.y + stretch_floor_end.y) / 2
+        fixture_def.shape.SetAsBox(
+          (stretch_floor_end.x - stretch_floor_start.x) / 2
+          (stretch_floor_end.y - stretch_floor_start.y) / 2
         )
+        world.CreateBody(body_def).CreateFixture fixture_def
+        stretch_floor_start := null
+      # create walls from the map
+      for row, y of map.physics_layer
+        for value, x of row
+          if value is not 0
+            if not stretch_floor_start?
+              stretch_floor_start := new b2Vec2 x, y
+            stretch_floor_end := new b2Vec2 x+1, y+1
+          else
+            flush_strech_floor!
+        flush_strech_floor!
+      for object of map.objects
+        if (gravity_scale = object.properties.gravity_scale)?
+          gravity_scale_zones.push(
+            scale: gravity_scale
+            aabb: make_aabb(
+              object.x / map.scale
+              object.y / map.scale
+              (object.x + object.width) / map.scale
+              (object.y + object.height) / map.scale
+            )
+          )
 
     # create the man
     body_def = new b2BodyDef!
     body_def.type = b2Body.b2_dynamicBody
-    fixture_def.friction = 0
-    fixture_def.shape = new b2PolygonShape!
-    fixture_def.shape.SetAsBox 0.4, 1.1
     body_def.position.x = 40
     body_def.position.y = 43
     body_def.fixedRotation = true
-    man.torso_body := world.CreateBody body_def
-    body_def.fixedRotation = false
-    man.torso_body.SetUserData man.standing_sprite
-    man.torso_body.CreateFixture fixture_def
+    man.body := world.CreateBody body_def
+    man.body.SetUserData man.standing_sprite
+    torso_def = new b2FixtureDef!
+    torso_def.density = 1.0
+    torso_def.friction = 0
+    torso_def.shape = new b2PolygonShape!
+    half_width = 0.8/2
+    height = 2.6
+    half_height = height/2
+    feet_height = 0.2
+    torso_half_height = (height - feet_height) / 2
+    torso_center = new b2Vec2 0, torso_half_height - half_height
+    torso_def.shape.SetAsOrientedBox half_width, torso_half_height, torso_center
+    man.body.CreateFixture torso_def
 
-    body_def.position.y += 1.1
-    man.feet_body := world.CreateBody body_def
-    fixture_def.shape = new b2CircleShape 0.4 - 0.01
-    fixture_def.restitution = 0
-    fixture_def.friction = 3
-    man.feet_body.CreateFixture fixture_def
-
-    joint_def = new b2RevoluteJointDef!
-    joint_def.Initialize man.torso_body, man.feet_body, man.feet_body.GetWorldCenter!
-    world.CreateJoint joint_def
+    feet_def = new b2FixtureDef!
+    feet_def.density = 1.0
+    feet_def.shape = new b2PolygonShape!
+    feet_top = torso_center.y + torso_half_height
+    feet_def.shape.SetAsArray [
+      * x: -half_width, y: feet_top
+      * x:  half_width, y: feet_top
+      * x:           0, y: feet_top + feet_height
+    ]
+    feet_def.restitution = 0
+    feet_def.friction = 0
+    man.feet_fixture = man.body.CreateFixture feet_def
 
   is_grounded = null
+  was_grounded = false
   engine.on 'update', (dt, dx) ->
 
     debug_drawing := !debug_drawing if engine.buttonJustPressed Chem.Button.Key_Grave
 
     is_grounded := do ->
-      contact_edge = man.feet_body.GetContactList!
+      contact_edge = man.body.GetContactList!
       while contact_edge
-        if contact_edge.contact.IsTouching!
-          return true
+        contact = contact_edge.contact
+        if contact.IsTouching!
+          if contact.GetFixtureA! is man.feet_fixture or contact.GetFixtureB! is man.feet_fixture
+            return true
         contact_edge = contact_edge.next
       false
 
-    man_velocity = man.torso_body.GetLinearVelocity!
+    man_velocity = man.body.GetLinearVelocity!
 
     # left/right
     horizontal_intention = 0
     horizontal_intention-- if engine.buttonState Chem.Button.Key_Left
     horizontal_intention++ if engine.buttonState Chem.Button.Key_Right
-    # rotate feet wheel to move on the ground
-    feet_angular_velocity = 30 * horizontal_intention
-    man.feet_body.SetAngularVelocity feet_angular_velocity
-    man.feet_body.SetFixedRotation horizontal_intention is 0
-    man.feet_body.SetAwake true
-    # additional left/right control for in the air
-    feet_radius = man.feet_body.GetFixtureList!.m_shape.m_radius
-    feet_max_velocity = feet_angular_velocity * feet_radius
-    magic_max_velocity = 0.8 * feet_max_velocity
+    magic_max_velocity = 10 * horizontal_intention
     if horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity
       # magic acceleration
-      man.torso_body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man.torso_body.m_xf.position
+      man.body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man.body.m_xf.position
+
+    # ground friction with no horizontal intention
+    if is_grounded and horizontal_intention is 0
+      if not was_grounded
+        # when landing, stop suddenly.
+        man.body.SetLinearVelocity x: 0, y: 0
+      else
+        # slow a run
+        get_horizontal_direction = ->
+          dx = man.body.GetLinearVelocity!.x
+          if dx < 0 then -1 else if dx > 0 then 1 else 0
+        direction = get_horizontal_direction!
+        if direction is not 0
+          man.body.ApplyImpulse new b2Vec2(-2.0 * direction, 0), man.body.m_xf.position
+          # if we overshot 0, snap to 0
+          new_direction = get_horizontal_direction!
+          if new_direction is not 0 and new_direction is not direction
+            man.body.SetLinearVelocity x: 0, y: 0
 
     # notice gravity scales
     world.SetGravity gravity
     for {scale, aabb} of gravity_scale_zones
-      if aabb.TestOverlap man.torso_body.GetFixtureList!.GetAABB!
+      if aabb.TestOverlap man.body.GetFixtureList!.GetAABB!
         scaled_gravity = gravity.Copy!
         scaled_gravity.Multiply scale
         world.SetGravity scaled_gravity
@@ -206,7 +229,7 @@ init = ->
     # JOMP!
     jump_button = Chem.Button.Key_Space
     if is_grounded and engine.buttonJustPressed jump_button
-      man.torso_body.ApplyImpulse new b2Vec2(0, -41), man.torso_body.m_xf.position
+      man.body.ApplyImpulse new b2Vec2(0, -37), man.body.m_xf.position
     const jump_stop = -5
     if not engine.buttonState jump_button and man_velocity.y < jump_stop
       man_velocity.y = jump_stop
@@ -216,10 +239,11 @@ init = ->
     last_facing_direction := facing_direction
     sprite = if engine.buttonState Chem.Button.Key_Down then man.crouching_sprite else man.standing_sprite
     sprite.scale.x = facing_direction
-    man.torso_body.SetUserData sprite
+    man.body.SetUserData sprite
 
     world.Step dt, 10, 10
     world.ClearForces!
+    was_grounded := is_grounded
 
   world_to_canvas = ->
     in_pixels = new Chem.Vec2d(it).scale(view_scale)
@@ -228,10 +252,10 @@ init = ->
     return in_pixels
   get_view_aabb = ->
     make_aabb(
-      man.torso_body.m_xf.position.x - canvas_center.x / view_scale
-      man.torso_body.m_xf.position.y - canvas_center.y / view_scale
-      man.torso_body.m_xf.position.x + canvas_center.x / view_scale
-      man.torso_body.m_xf.position.y + canvas_center.y / view_scale
+      man.body.m_xf.position.x - canvas_center.x / view_scale
+      man.body.m_xf.position.y - canvas_center.y / view_scale
+      man.body.m_xf.position.x + canvas_center.x / view_scale
+      man.body.m_xf.position.y + canvas_center.y / view_scale
     )
 
   engine.on 'draw', (context) ->
@@ -239,7 +263,7 @@ init = ->
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
     context.save!
-    let center = world_to_canvas(new Chem.Vec2d man.torso_body.m_xf.position).sub canvas_center
+    let center = world_to_canvas(new Chem.Vec2d man.body.m_xf.position).sub canvas_center
       context.translate -center.x, -center.y
 
     if debug_drawing
