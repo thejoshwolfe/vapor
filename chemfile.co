@@ -15,4 +15,3 @@ exports.spritesheet =
   animations:
     man_stand: {}
     man_crouch: {}
-    ship: {}
