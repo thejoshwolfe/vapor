@@ -210,6 +210,10 @@ init = ->
     if not engine.buttonState jump_button and man_velocity.y < jump_stop
       man_velocity.y = jump_stop
 
+    # update sprite
+    if horizontal_intention is not 0
+      man_sprite.scale.x = horizontal_intention
+
     world.Step dt, 10, 10
     world.ClearForces!
 
