@@ -80,6 +80,8 @@ init = ->
     feet_fixture: null
     standing_sprite: new Chem.Sprite 'man_stand', z_order: 1
     crouching_sprite: new Chem.Sprite 'man_crouch', z_order: 1
+    is_grounded: null
+    was_grounded: false
   window?._debug_man = man
   let
     world := new b2World gravity, true
@@ -165,13 +167,11 @@ init = ->
     feet_def.shape.SetAsOrientedBox half_width, 0.05, new b2Vec2 0, half_height
     man.feet_fixture = man.body.CreateFixture feet_def
 
-  is_grounded = null
-  was_grounded = false
   engine.on 'update', (dt, dx) ->
 
     debug_drawing := !debug_drawing if engine.buttonJustPressed Chem.Button.Key_Grave
 
-    is_grounded := do ->
+    man.is_grounded = do ->
       contact_edge = man.body.GetContactList!
       while contact_edge
         contact = contact_edge.contact
@@ -193,8 +193,8 @@ init = ->
       man.body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man.body.m_xf.position
 
     # ground friction with no horizontal intention
-    if is_grounded and horizontal_intention is 0
-      if not was_grounded
+    if man.is_grounded and horizontal_intention is 0
+      if not man.was_grounded
         # when landing, stop suddenly.
         man.body.SetLinearVelocity x: 0, y: 0
       else
@@ -220,7 +220,7 @@ init = ->
 
     # JOMP!
     jump_button = Chem.Button.Key_Space
-    if is_grounded and engine.buttonJustPressed jump_button
+    if man.is_grounded and engine.buttonJustPressed jump_button
       man.body.ApplyImpulse new b2Vec2(0, -39), man.body.m_xf.position
     const jump_stop = -5
     if not engine.buttonState jump_button and man_velocity.y < jump_stop
@@ -235,7 +235,7 @@ init = ->
 
     world.Step dt, 10, 10
     world.ClearForces!
-    was_grounded := is_grounded
+    man.was_grounded = man.is_grounded
 
   world_to_canvas = ->
     in_pixels = new Chem.Vec2d(it).scale(view_scale)
@@ -284,7 +284,7 @@ init = ->
     # draw a little fps counter in the corner
     context.fillStyle = '#ffffff'
     engine.drawFps!
-    context.fillText "grounded = #{is_grounded}", 100, canvas_center.y * 2
+    context.fillText "grounded = #{man.is_grounded}", 100, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
