@@ -66,9 +66,10 @@ init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
-  const man_sprite = new Chem.Sprite 'man',
-    z_order: 1
+  const standing_sprite = new Chem.Sprite 'man_stand', z_order: 1
+  const crouching_sprite = new Chem.Sprite 'man_crouch', z_order: 1
   const gravity = new b2Vec2 0, 30
+  last_facing_direction = 1
 
   # GIMME THE FIZZAQS!
   const view_scale = map.scale
@@ -147,7 +148,7 @@ init = ->
     body_def.fixedRotation = true
     man_body := world.CreateBody body_def
     body_def.fixedRotation = false
-    man_body.SetUserData man_sprite
+    man_body.SetUserData standing_sprite
     man_body.CreateFixture fixture_def
 
     body_def.position.y += 1.1
@@ -211,8 +212,11 @@ init = ->
       man_velocity.y = jump_stop
 
     # update sprite
-    if horizontal_intention is not 0
-      man_sprite.scale.x = horizontal_intention
+    facing_direction = horizontal_intention or last_facing_direction
+    last_facing_direction := facing_direction
+    sprite = if engine.buttonState Chem.Button.Key_Down then crouching_sprite else standing_sprite
+    sprite.scale.x = facing_direction
+    man_body.SetUserData sprite
 
     world.Step dt, 10, 10
     world.ClearForces!

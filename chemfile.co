@@ -13,5 +13,6 @@ exports.spritesheet =
     # ["center", "topleft", "topright", "bottomleft", "bottomright"]
     anchor: "center"
   animations:
-    man: {}
+    man_stand: {}
+    man_crouch: {}
     ship: {}
