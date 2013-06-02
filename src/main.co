@@ -66,8 +66,6 @@ init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
-  const standing_sprite = new Chem.Sprite 'man_stand', z_order: 1
-  const crouching_sprite = new Chem.Sprite 'man_crouch', z_order: 1
   const gravity = new b2Vec2 0, 30
   last_facing_direction = 1
 
@@ -77,8 +75,11 @@ init = ->
   gravity_scale_zones = []
   debug_drawer = null
   debug_drawing = false
-  man_body = null
-  feet_body = null
+  man =
+    torso_body: null
+    feet_body: null
+    standing_sprite: new Chem.Sprite 'man_stand', z_order: 1
+    crouching_sprite: new Chem.Sprite 'man_crouch', z_order: 1
   let
     world := new b2World gravity, true
 
@@ -146,21 +147,20 @@ init = ->
     body_def.position.x = 40
     body_def.position.y = 43
     body_def.fixedRotation = true
-    man_body := world.CreateBody body_def
+    man.torso_body := world.CreateBody body_def
     body_def.fixedRotation = false
-    man_body.SetUserData standing_sprite
-    man_body.CreateFixture fixture_def
+    man.torso_body.SetUserData man.standing_sprite
+    man.torso_body.CreateFixture fixture_def
 
     body_def.position.y += 1.1
-    feet_body := world.CreateBody body_def
+    man.feet_body := world.CreateBody body_def
     fixture_def.shape = new b2CircleShape 0.4 - 0.01
     fixture_def.restitution = 0
     fixture_def.friction = 3
-    feet_body.CreateFixture fixture_def
-    # feet_body.SetUserData new Chem.Sprite 'ship'
+    man.feet_body.CreateFixture fixture_def
 
     joint_def = new b2RevoluteJointDef!
-    joint_def.Initialize man_body, feet_body, feet_body.GetWorldCenter!
+    joint_def.Initialize man.torso_body, man.feet_body, man.feet_body.GetWorldCenter!
     world.CreateJoint joint_def
 
   is_grounded = null
@@ -169,14 +169,14 @@ init = ->
     debug_drawing := !debug_drawing if engine.buttonJustPressed Chem.Button.Key_Grave
 
     is_grounded := do ->
-      contact_edge = feet_body.GetContactList!
+      contact_edge = man.feet_body.GetContactList!
       while contact_edge
         if contact_edge.contact.IsTouching!
           return true
         contact_edge = contact_edge.next
       false
 
-    man_velocity = man_body.GetLinearVelocity!
+    man_velocity = man.torso_body.GetLinearVelocity!
 
     # left/right
     horizontal_intention = 0
@@ -184,21 +184,21 @@ init = ->
     horizontal_intention++ if engine.buttonState Chem.Button.Key_Right
     # rotate feet wheel to move on the ground
     feet_angular_velocity = 30 * horizontal_intention
-    feet_body.SetAngularVelocity feet_angular_velocity
-    feet_body.SetFixedRotation horizontal_intention is 0
-    feet_body.SetAwake true
+    man.feet_body.SetAngularVelocity feet_angular_velocity
+    man.feet_body.SetFixedRotation horizontal_intention is 0
+    man.feet_body.SetAwake true
     # additional left/right control for in the air
-    feet_radius = feet_body.GetFixtureList!.m_shape.m_radius
+    feet_radius = man.feet_body.GetFixtureList!.m_shape.m_radius
     feet_max_velocity = feet_angular_velocity * feet_radius
     magic_max_velocity = 0.8 * feet_max_velocity
     if horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity
       # magic acceleration
-      man_body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man_body.m_xf.position
+      man.torso_body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man.torso_body.m_xf.position
 
     # notice gravity scales
     world.SetGravity gravity
     for {scale, aabb} of gravity_scale_zones
-      if aabb.TestOverlap man_body.GetFixtureList!.GetAABB!
+      if aabb.TestOverlap man.torso_body.GetFixtureList!.GetAABB!
         scaled_gravity = gravity.Copy!
         scaled_gravity.Multiply scale
         world.SetGravity scaled_gravity
@@ -206,7 +206,7 @@ init = ->
     # JOMP!
     jump_button = Chem.Button.Key_Space
     if is_grounded and engine.buttonJustPressed jump_button
-      man_body.ApplyImpulse new b2Vec2(0, -41), man_body.m_xf.position
+      man.torso_body.ApplyImpulse new b2Vec2(0, -41), man.torso_body.m_xf.position
     const jump_stop = -5
     if not engine.buttonState jump_button and man_velocity.y < jump_stop
       man_velocity.y = jump_stop
@@ -214,9 +214,9 @@ init = ->
     # update sprite
     facing_direction = horizontal_intention or last_facing_direction
     last_facing_direction := facing_direction
-    sprite = if engine.buttonState Chem.Button.Key_Down then crouching_sprite else standing_sprite
+    sprite = if engine.buttonState Chem.Button.Key_Down then man.crouching_sprite else man.standing_sprite
     sprite.scale.x = facing_direction
-    man_body.SetUserData sprite
+    man.torso_body.SetUserData sprite
 
     world.Step dt, 10, 10
     world.ClearForces!
@@ -228,10 +228,10 @@ init = ->
     return in_pixels
   get_view_aabb = ->
     make_aabb(
-      man_body.m_xf.position.x - canvas_center.x / view_scale
-      man_body.m_xf.position.y - canvas_center.y / view_scale
-      man_body.m_xf.position.x + canvas_center.x / view_scale
-      man_body.m_xf.position.y + canvas_center.y / view_scale
+      man.torso_body.m_xf.position.x - canvas_center.x / view_scale
+      man.torso_body.m_xf.position.y - canvas_center.y / view_scale
+      man.torso_body.m_xf.position.x + canvas_center.x / view_scale
+      man.torso_body.m_xf.position.y + canvas_center.y / view_scale
     )
 
   engine.on 'draw', (context) ->
@@ -239,7 +239,7 @@ init = ->
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
     context.save!
-    let center = world_to_canvas(new Chem.Vec2d man_body.m_xf.position).sub canvas_center
+    let center = world_to_canvas(new Chem.Vec2d man.torso_body.m_xf.position).sub canvas_center
       context.translate -center.x, -center.y
 
     if debug_drawing
