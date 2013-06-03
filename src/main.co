@@ -79,6 +79,7 @@ init = ->
     standing_sprite: new Chem.Sprite 'man_stand', z_order: 1
     crouching_sprite: new Chem.Sprite 'man_crouch', z_order: 1
     half_width: 0.8/2
+    sensor_half_width: 0.8/2 * 0.95
     standing_half_height: 2.6/2
     crouching_half_height: 2.0/2
     ground_sensor_height: 0.05
@@ -165,7 +166,7 @@ init = ->
     feet_def = new b2FixtureDef!
     feet_def.density = 0
     feet_def.isSensor = true
-    feet_def.shape = b2PolygonShape.AsOrientedBox man.half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
+    feet_def.shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
     man.ground_sensor = man.body.CreateFixture feet_def
 
   engine.on 'update', (dt, dx) ->
@@ -187,13 +188,13 @@ init = ->
     if man.was_crouching and not man.is_crouching
       # stand up
       man.torso_fixture.m_shape = b2PolygonShape.AsBox man.half_width, man.standing_half_height
-      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
+      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
       man.body.ResetMassData!
       man.body.SetAwake true
     if not man.was_crouching and man.is_crouching
       # crouch down
       man.torso_fixture.m_shape = b2PolygonShape.AsBox man.half_width, man.crouching_half_height
-      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.half_width, man.ground_sensor_height, new b2Vec2 0, man.crouching_half_height
+      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.crouching_half_height
       man.body.ResetMassData!
       man.body.SetAwake true
       if man.is_grounded
