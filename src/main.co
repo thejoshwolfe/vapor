@@ -21,6 +21,8 @@ query_aabb = (world, aabb, callback) ->
     !callback fixture
   world.QueryAABB callback, aabb
 
+sign = (n) -> if n < 0 then -1 else if n > 0 then 1 else 0
+
 # couldn't find an existing function for this, so here's my version
 aabb_contains_point = (aabb, point) ->
   ( aabb.lowerBound.x <= point.x and point.x < aabb.upperBound.x and
@@ -96,6 +98,8 @@ init = ->
     standing_half_height: 2.6/2
     crouching_half_height: 2.0/2
     ground_sensor_height: 0.05
+    jump_impulse: new b2Vec2(0, -39)
+    jump_stop: -5
     body: null
     mass: null
     ground_sensor: null
@@ -104,7 +108,9 @@ init = ->
     was_grounded: false
     is_crouching: null
     was_crouching: false
-    last_facing_direction: 1
+    is_jumping: false
+    gravity_direction: 1
+    facing_direction: 1
   window?._debug_man = man
   let
     world := new b2World new b2Vec2(), true
@@ -272,21 +278,34 @@ init = ->
     man.body.ApplyForce gravity, man.body.GetPosition!
 
     # JOMP!
+    gravity_direction = sign gravity.y
+    if man.gravity_direction is not gravity_direction
+      # flip upsidedown
+      void
+      # sorry. turn off jumping mechanics through gravity changes
+      man.is_jumping = false
     if man.is_grounded and engine.buttonJustPressed buttons.jump
-      man.body.ApplyImpulse new b2Vec2(0, -39), man.body.GetPosition!
-    const jump_stop = -5
-    if not engine.buttonState buttons.jump and man_velocity.y < jump_stop
-      man_velocity.y = jump_stop
+      jump_impulse = man.jump_impulse.Copy!
+      jump_impulse.y *= gravity_direction
+      man.body.ApplyImpulse jump_impulse, man.body.GetPosition!
+      man.is_jumping = true
+    if man.is_jumping and not engine.buttonState buttons.jump
+      # just let go of jump
+      if gravity_direction * man_velocity.y < gravity_direction * man.jump_stop
+        # interrupt the jump
+        man_velocity.y = gravity_direction * man.jump_stop
+      man.is_jumping = false
+    man.gravity_direction = gravity_direction
 
     # pew pew
     if engine.buttonJustPressed buttons.pew
       sounds.bchs.play!
 
     # update sprite
-    facing_direction = horizontal_intention or man.last_facing_direction
-    man.last_facing_direction = facing_direction
+    man.facing_direction = horizontal_intention if horizontal_intention is not 0
     sprite = if man.is_crouching then man.crouching_sprite else man.standing_sprite
-    sprite.scale.x = facing_direction
+    sprite.scale.x = man.facing_direction
+    sprite.scale.y = man.gravity_direction
     man.body.SetUserData sprite
 
     world.Step dt, 10, 10
