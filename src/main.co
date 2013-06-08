@@ -60,14 +60,21 @@ let
   request.open "GET", "map.tmx", true
   request.send!
 
-  parse_map = ->
-
 init = ->
   const canvas = document.getElementById "game"
   const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
   const engine = new Chem.Engine canvas
   const gravity = new b2Vec2 0, 30
-  last_facing_direction = 1
+
+  sounds =
+    bchs: new Chem.Sound "sfx/bchs.ogg"
+  buttons =
+    left: Chem.Button.Key_A
+    right: Chem.Button.Key_D
+    crouch: Chem.Button.Key_S
+    jump: Chem.Button.Key_K
+    pew: Chem.Button.Key_J
+    debug: Chem.Button.Key_Grave
 
   # GIMME THE FIZZAQS!
   const view_scale = map.scale
@@ -90,6 +97,7 @@ init = ->
     was_grounded: false
     is_crouching: null
     was_crouching: false
+    last_facing_direction: 1
   window?._debug_man = man
   let
     world := new b2World gravity, true
@@ -171,7 +179,7 @@ init = ->
 
   engine.on 'update', (dt, dx) ->
 
-    debug_drawing := !debug_drawing if engine.buttonJustPressed Chem.Button.Key_Grave
+    debug_drawing := !debug_drawing if engine.buttonJustPressed buttons.debug
 
     man.is_grounded = do ->
       contact_edge = man.body.GetContactList!
@@ -182,7 +190,7 @@ init = ->
             return true
         contact_edge = contact_edge.next
       false
-    man.is_crouching = engine.buttonState Chem.Button.Key_Down
+    man.is_crouching = engine.buttonState buttons.crouch
 
     # adjust bounding box for crouching/standing
     if man.was_crouching and not man.is_crouching
@@ -207,8 +215,8 @@ init = ->
 
     # left/right
     horizontal_intention = 0
-    horizontal_intention-- if engine.buttonState Chem.Button.Key_Left
-    horizontal_intention++ if engine.buttonState Chem.Button.Key_Right
+    horizontal_intention-- if engine.buttonState buttons.left
+    horizontal_intention++ if engine.buttonState buttons.right
     magic_max_velocity = 10 * horizontal_intention
     if horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity
       # magic acceleration
@@ -241,16 +249,19 @@ init = ->
         world.SetGravity scaled_gravity
 
     # JOMP!
-    jump_button = Chem.Button.Key_Space
-    if man.is_grounded and engine.buttonJustPressed jump_button
+    if man.is_grounded and engine.buttonJustPressed buttons.jump
       man.body.ApplyImpulse new b2Vec2(0, -39), man.body.GetPosition!
     const jump_stop = -5
-    if not engine.buttonState jump_button and man_velocity.y < jump_stop
+    if not engine.buttonState buttons.jump and man_velocity.y < jump_stop
       man_velocity.y = jump_stop
 
+    # pew pew
+    if engine.buttonJustPressed buttons.pew
+      sounds.bchs.play!
+
     # update sprite
-    facing_direction = horizontal_intention or last_facing_direction
-    last_facing_direction := facing_direction
+    facing_direction = horizontal_intention or man.last_facing_direction
+    man.last_facing_direction = facing_direction
     sprite = if man.is_crouching then man.crouching_sprite else man.standing_sprite
     sprite.scale.x = facing_direction
     man.body.SetUserData sprite
