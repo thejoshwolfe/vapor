@@ -1,0 +1,42 @@
+const b2Vec2 = Box2D.Common.Math.b2Vec2
+const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+const b2MassData = Box2D.Collision.Shapes.b2MassData
+
+window.Man = class Man
+  half_width: 0.8/2
+  sensor_half_width: 0.8/2 * 0.95
+  standing_half_height: 2.6/2
+  crouching_half_height: 2.0/2
+  ground_sensor_height: 0.05
+  jump_impulse: new b2Vec2(0, -39)
+  jump_stop: -5
+  ~>
+    # don't use chem until we're constructed, otherwise the spritesheet may not have loaded yet.
+    @standing_sprite = new Chem.Sprite 'man_stand', z_order: 1
+    @crouching_sprite = new Chem.Sprite 'man_crouch', z_order: 1
+    @body = null
+    @mass = null
+    @ground_sensor = null
+    @torso_fixture = null
+    @is_grounded = null
+    @was_grounded = false
+    @is_crouching = null
+    @was_crouching = false
+    @is_jumping = false
+    @gravity_direction = 1
+    @facing_direction = 1
+
+  get_half_height: -> if @is_crouching then @crouching_half_height else @standing_half_height
+
+  get_torso_shape: -> b2PolygonShape.AsBox @half_width, @get_half_height!
+  get_ground_sensor_shape: -> b2PolygonShape.AsOrientedBox @sensor_half_width, @ground_sensor_height, new b2Vec2 0, @get_half_height!
+
+  reset_mass: ->
+    @body.SetAwake true
+    @body.ResetMassData!
+    # hold the total mass constant through shape changes
+    # but respect the recalculation of center of gravity
+    @body.GetMassData(mass_data = new b2MassData)
+    mass_data.mass = @mass
+    @body.SetMassData mass_data
+

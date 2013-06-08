@@ -12,9 +12,10 @@
   },
   "dependencies": {
     "chem": "~0.1.4",
+    "jspackage": "~0.5.0",
     "coco": "~0.7.6"
   },
   "scripts": {
-    "dev": "npm install . && chem dev"
+    "dev": "npm install . && jspackage src/chem_loader.co public/chem.js -l node_modules/chem/src/client -l node_modules/chem/src/shared && chem dev"
   }
 }

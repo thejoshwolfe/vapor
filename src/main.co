@@ -1,5 +1,5 @@
-#depend "chem"
 #depend "map"
+#depend "man"
 
 const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2BodyDef = Box2D.Dynamics.b2BodyDef
@@ -9,7 +9,6 @@ const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 const b2World = Box2D.Dynamics.b2World
 const b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 const b2AABB = Box2D.Collision.b2AABB
-const b2MassData = Box2D.Collision.Shapes.b2MassData
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
@@ -90,28 +89,8 @@ init = ->
   gravity_zones = []
   debug_drawer = null
   debug_drawing = false
-  man =
-    standing_sprite: new Chem.Sprite 'man_stand', z_order: 1
-    crouching_sprite: new Chem.Sprite 'man_crouch', z_order: 1
-    half_width: 0.8/2
-    sensor_half_width: 0.8/2 * 0.95
-    standing_half_height: 2.6/2
-    crouching_half_height: 2.0/2
-    ground_sensor_height: 0.05
-    jump_impulse: new b2Vec2(0, -39)
-    jump_stop: -5
-    body: null
-    mass: null
-    ground_sensor: null
-    torso_fixture: null
-    is_grounded: null
-    was_grounded: false
-    is_crouching: null
-    was_crouching: false
-    is_jumping: false
-    gravity_direction: 1
-    facing_direction: 1
-  window?._debug_man = man
+  man = new Man
+  window._debug_man = man
   let
     world := new b2World new b2Vec2(), true
 
@@ -186,7 +165,7 @@ init = ->
     torso_def = new b2FixtureDef!
     torso_def.density = 1.0
     torso_def.friction = 0
-    torso_def.shape = b2PolygonShape.AsBox man.half_width, man.standing_half_height
+    torso_def.shape = man.get_torso_shape!
     man.torso_fixture = man.body.CreateFixture torso_def
 
     feet_def = new b2FixtureDef!
@@ -214,30 +193,16 @@ init = ->
     man.is_crouching = engine.buttonState buttons.crouch
 
     # adjust bounding box for crouching/standing
-    reset_mass = false
-    if man.was_crouching and not man.is_crouching
-      # stand up
-      man.torso_fixture.m_shape = b2PolygonShape.AsBox man.half_width, man.standing_half_height
-      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
-      reset_mass = true
-    if not man.was_crouching and man.is_crouching
-      # crouch down
-      man.torso_fixture.m_shape = b2PolygonShape.AsBox man.half_width, man.crouching_half_height
-      man.ground_sensor.m_shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.crouching_half_height
-      reset_mass = true
-      if man.is_grounded
-        # snap to the ground
+    if man.was_crouching is not man.is_crouching
+      # stand up / crouch down
+      man.torso_fixture.m_shape = man.get_torso_shape!
+      man.ground_sensor.m_shape = man.get_ground_sensor_shape!
+      man.reset_mass!
+      if man.is_crouching and man.is_grounded
+        # stick to the ground when entering a crouch
         position = man.body.GetPosition!.Copy!
         position.y += man.standing_half_height - man.crouching_half_height
         man.body.SetPosition position
-    if reset_mass
-      man.body.SetAwake true
-      man.body.ResetMassData!
-      # hold the total mass constant through shape changes
-      # but respect the recalculation of center of gravity
-      man.body.GetMassData(mass_data = new b2MassData)
-      mass_data.mass = man.mass
-      man.body.SetMassData mass_data
 
     man_velocity = man.body.GetLinearVelocity!
 
@@ -257,9 +222,7 @@ init = ->
         man.body.SetLinearVelocity x: 0, y: 0
       else
         # slow a run
-        get_horizontal_direction = ->
-          dx = man_velocity.x
-          if dx < 0 then -1 else if dx > 0 then 1 else 0
+        get_horizontal_direction = -> sign man_velocity.x
         direction = get_horizontal_direction!
         if direction is not 0
           man.body.ApplyImpulse new b2Vec2(-2.0 * direction, 0), man.body.GetPosition!
