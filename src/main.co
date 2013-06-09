@@ -247,22 +247,28 @@ init = ->
     # JOMP!
     gravity_direction = sign gravity.y
     if man.gravity_direction is not gravity_direction
-      # flip upsidedown
-      void
       # sorry. turn off jumping mechanics through gravity changes
       man.is_jumping = false
+    if gravity_direction is 0
+      # maintain last gravity_direction in zero-g
+      gravity_direction = man.gravity_direction
+    man.gravity_direction = gravity_direction
     if man.is_grounded and engine.buttonJustPressed buttons.jump
       jump_impulse = man.jump_impulse.Copy!
       jump_impulse.y *= gravity_direction
       man.body.ApplyImpulse jump_impulse, man.body.GetPosition!
       man.is_jumping = true
-    if man.is_jumping and not engine.buttonState buttons.jump
-      # just let go of jump
-      if gravity_direction * man_velocity.y < gravity_direction * man.jump_stop
-        # interrupt the jump
-        man_velocity.y = gravity_direction * man.jump_stop
-      man.is_jumping = false
-    man.gravity_direction = gravity_direction
+    if man.is_jumping
+      jump_stop = gravity_direction * man.jump_stop
+      if gravity_direction * man_velocity.y < gravity_direction * jump_stop
+        # still jumping
+        if not engine.buttonState buttons.jump
+          # just let go of jump button. interrupt the jump.
+          man_velocity.y = jump_stop
+          man.is_jumping = false
+      else
+        # past the point where jumping is meaningful. now it's just falling.
+        man.is_jumping = false
 
     # pew pew
     if engine.buttonJustPressed buttons.pew
@@ -328,6 +334,7 @@ init = ->
     context.fillStyle = '#ffffff'
     engine.drawFps!
     context.fillText "grounded = #{man.is_grounded}", 100, canvas_center.y * 2
+    context.fillText "jumping = #{man.is_jumping}", 200, canvas_center.y * 2
 
   engine.start!
   canvas.focus!
