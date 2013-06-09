@@ -168,11 +168,13 @@ init = ->
     torso_def.shape = man.get_torso_shape!
     man.torso_fixture = man.body.CreateFixture torso_def
 
-    feet_def = new b2FixtureDef!
-    feet_def.density = 0
-    feet_def.isSensor = true
-    feet_def.shape = b2PolygonShape.AsOrientedBox man.sensor_half_width, man.ground_sensor_height, new b2Vec2 0, man.standing_half_height
-    man.ground_sensor = man.body.CreateFixture feet_def
+    ground_sensor_def = new b2FixtureDef!
+    ground_sensor_def.density = 0
+    ground_sensor_def.isSensor = true
+    ground_sensor_def.shape = man.get_ground_sensor_shape 1
+    man.ground_sensors[1] = man.body.CreateFixture ground_sensor_def
+    ground_sensor_def.shape = man.get_ground_sensor_shape -1
+    man.ground_sensors[-1] = man.body.CreateFixture ground_sensor_def
 
     # cache the mass so we can keep it constant through shape changes
     man.mass = man.body.GetMass!
@@ -182,11 +184,12 @@ init = ->
     debug_drawing := !debug_drawing if engine.buttonJustPressed buttons.debug
 
     man.is_grounded = do ->
+      ground_sensor = man.get_ground_sensor!
       contact_edge = man.body.GetContactList!
       while contact_edge
         contact = contact_edge.contact
         if contact.IsTouching!
-          if contact.GetFixtureA! is man.ground_sensor or contact.GetFixtureB! is man.ground_sensor
+          if contact.GetFixtureA! is ground_sensor or contact.GetFixtureB! is ground_sensor
             return true
         contact_edge = contact_edge.next
       false
@@ -196,12 +199,13 @@ init = ->
     if man.was_crouching is not man.is_crouching
       # stand up / crouch down
       man.torso_fixture.m_shape = man.get_torso_shape!
-      man.ground_sensor.m_shape = man.get_ground_sensor_shape!
+      man.ground_sensors[1].m_shape = man.get_ground_sensor_shape 1
+      man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape -1
       man.reset_mass!
       if man.is_crouching and man.is_grounded
         # stick to the ground when entering a crouch
         position = man.body.GetPosition!.Copy!
-        position.y += man.standing_half_height - man.crouching_half_height
+        position.y += man.gravity_direction * (man.standing_half_height - man.crouching_half_height)
         man.body.SetPosition position
 
     man_velocity = man.body.GetLinearVelocity!

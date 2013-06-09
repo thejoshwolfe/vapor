@@ -16,7 +16,7 @@ window.Man = class Man
     @crouching_sprite = new Chem.Sprite 'man_crouch', z_order: 1
     @body = null
     @mass = null
-    @ground_sensor = null
+    @ground_sensors = {}
     @torso_fixture = null
     @is_grounded = null
     @was_grounded = false
@@ -29,7 +29,9 @@ window.Man = class Man
   get_half_height: -> if @is_crouching then @crouching_half_height else @standing_half_height
 
   get_torso_shape: -> b2PolygonShape.AsBox @half_width, @get_half_height!
-  get_ground_sensor_shape: -> b2PolygonShape.AsOrientedBox @sensor_half_width, @ground_sensor_height, new b2Vec2 0, @get_half_height!
+  get_ground_sensor_shape: (gravity_direction) ->
+    b2PolygonShape.AsOrientedBox @sensor_half_width, @ground_sensor_height, new b2Vec2 0, gravity_direction * @get_half_height!
+  get_ground_sensor: -> @ground_sensors[@gravity_direction]
 
   reset_mass: ->
     @body.SetAwake true
