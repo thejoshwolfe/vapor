@@ -214,7 +214,7 @@ init = ->
     horizontal_intention = 0
     horizontal_intention-- if engine.buttonState buttons.left
     horizontal_intention++ if engine.buttonState buttons.right
-    magic_max_velocity = 10 * horizontal_intention
+    magic_max_velocity = horizontal_intention * man.max_speed
     if horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity
       # magic acceleration
       man.body.ApplyImpulse new b2Vec2(2.0 * horizontal_intention, 0), man.body.GetPosition!
