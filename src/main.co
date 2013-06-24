@@ -24,6 +24,7 @@ const entity_classes =
     body_type: b2Body.b2_kinematicBody
     yike_time: 500
     yike_cooldown: 100
+    knockback_power: 20
     ->
       @normal_sprite = new Chem.Sprite "blob_normal"
       @yikes_sprite = new Chem.Sprite "blob_yikes"
@@ -177,16 +178,23 @@ init = ->
           man.is_grounded = true
 
     creeps.forEach (creep) ->
-      is_in_contact = false
-      visitContacts creep.body, (fixture) ->
+      contact_normal = null
+      visitContacts creep.body, (fixture, contact, normal_direction) ->
         if fixture is man.fixture
-          is_in_contact := true
+          contact_normal := new Chem.Vec2d(contact.GetManifold().m_localPlaneNormal).scale(normal_direction)
       if new Date! - creep.yiking_start >= creep.yike_time + creep.yike_cooldown
         creep.yiking_start = null
-      if is_in_contact and not creep.yiking_start?
+      if contact_normal? and not creep.yiking_start?
         creep.yiking_start = new Date!
+        man.ouching_start = new Date!
+        # apply knockback
+        man.body.ApplyImpulse contact_normal.scaled(-creep.knockback_power), man.body.GetPosition!
 
-    man.is_crouching = engine.buttonState buttons.crouch
+    is_ouching = man.ouching_start? and new Date! - man.ouching_start < man.ouch_time
+    if is_ouching
+      man.is_grounded = false
+
+    man.is_crouching = is_ouching or engine.buttonState buttons.crouch
 
     # adjust bounding box for crouching/standing
     if man.was_crouching is not man.is_crouching
@@ -369,7 +377,7 @@ function make_aabb(x1, y1, x2, y2)
   while contact_edge
     contact = contact_edge.contact
     if contact.IsTouching!
-      cb contact.GetFixtureA!
-      cb contact.GetFixtureB!
+      cb contact.GetFixtureA!, contact, 1
+      cb contact.GetFixtureB!, contact, -1
     contact_edge = contact_edge.next
 

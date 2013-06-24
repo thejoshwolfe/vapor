@@ -15,6 +15,7 @@ window.Man = class Man extends Entity
   jump_impulse: new b2Vec2(0, -39)
   jump_stop: -5
   max_speed: 20
+  ouch_time: 130
   ~>
     # don't use chem until we're constructed, otherwise the spritesheet may not have loaded yet.
     @standing_sprite = new Chem.Sprite 'man_stand', z_order: 1
@@ -27,6 +28,7 @@ window.Man = class Man extends Entity
     @is_crouching = null
     @was_crouching = false
     @is_jumping = false
+    @ouching_start = null
 
   init: (world, aabb, opts) ->
     super ...
