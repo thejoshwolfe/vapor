@@ -81,7 +81,6 @@ init = ->
   const view_scale = map.scale
   world = null
   gravity_zones = []
-  debug_drawer = null
   debug_drawing = false
   man = null
   entities = []
@@ -90,7 +89,9 @@ init = ->
   let
     world := new b2World new b2Vec2(), true
 
-    debug_drawer := new b2DebugDraw()
+    debug_drawer = new b2DebugDraw()
+    # disable white background
+    debug_drawer.m_sprite.graphics.clear = ->
     debug_drawer.SetSprite canvas.getContext "2d"
     debug_drawer.SetDrawScale view_scale
     debug_drawer.SetFillAlpha 0.5
