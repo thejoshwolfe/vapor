@@ -113,6 +113,7 @@ Map.parse = (text, create_wait_condition) ->
         y: parseInt object_element.getAttribute "y"
         width: parseInt object_element.getAttribute "width"
         height: parseInt object_element.getAttribute "height"
+        type: object_element.getAttribute "type"
         properties: properties
       )
   map

@@ -138,27 +138,30 @@ init = ->
             flush_strech_floor!
         flush_strech_floor!
       for object of map.objects
-        gravity_scale = parseFloat object.properties.gravity_scale
-        priority = parseFloat object.properties.priority
-        if not isNaN(gravity_scale) and not isNaN(priority)
-          gravity_zones.push(
-            scale: gravity_scale
-            priority: priority
-            aabb: make_aabb(
-              object.x / map.scale
-              object.y / map.scale
-              (object.x + object.width) / map.scale
-              (object.y + object.height) / map.scale
+        switch object.type
+          case \gravity
+            gravity_zones.push(
+              scale: parseFloat object.properties.gravity_scale
+              priority: parseFloat object.properties.priority
+              aabb: make_aabb(
+                object.x / map.scale
+                object.y / map.scale
+                (object.x + object.width) / map.scale
+                (object.y + object.height) / map.scale
+              )
             )
-          )
+          case \entity
+            man_start_position =
+              x: (object.x + object.width/2) / map.scale
+              y: (object.y + object.height/2) / map.scale
       gravity_zones.sort (a, b) ->
         if a.priority < b.priority then -1 else if a.priority > b.priority then 1 else 0
 
     # create the man
     body_def = new b2BodyDef!
     body_def.type = b2Body.b2_dynamicBody
-    body_def.position.x = 5
-    body_def.position.y = 5
+    body_def.position.x = man_start_position.x
+    body_def.position.y = man_start_position.y
     body_def.fixedRotation = true
     man.body := world.CreateBody body_def
     man.body.SetUserData man.standing_sprite
