@@ -22,12 +22,15 @@ const entity_classes =
   Man: Man
   Blob: class Blob extends Entity
     body_type: b2Body.b2_kinematicBody
+    yike_time: 500
+    yike_cooldown: 100
     ->
       @normal_sprite = new Chem.Sprite "blob_normal"
       @yikes_sprite = new Chem.Sprite "blob_yikes"
-      @bapping = false
+      @yiking_start = null
     get_shape: -> new b2CircleShape 1
-    get_sprite: -> if @bapping then @yikes_sprite else @normal_sprite
+    get_sprite: ->
+      if @yiking_start? and new Date! - @yiking_start < @yike_time then @yikes_sprite else @normal_sprite
 
 map = null
 let
@@ -174,10 +177,14 @@ init = ->
           man.is_grounded = true
 
     creeps.forEach (creep) ->
-      creep.bapping = false
+      is_in_contact = false
       visitContacts creep.body, (fixture) ->
         if fixture is man.fixture
-          creep.bapping = true
+          is_in_contact := true
+      if new Date! - creep.yiking_start >= creep.yike_time + creep.yike_cooldown
+        creep.yiking_start = null
+      if is_in_contact and not creep.yiking_start?
+        creep.yiking_start = new Date!
 
     man.is_crouching = engine.buttonState buttons.crouch
 
