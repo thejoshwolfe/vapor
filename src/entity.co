@@ -3,7 +3,7 @@ const b2BodyDef = Box2D.Dynamics.b2BodyDef
 const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
 
-window.EntityClass = class Entity
+module.exports = class Entity
   body_type: b2Body.b2_dynamicBody
   init: (world, aabb, opts) ->
     body_def = new b2BodyDef!

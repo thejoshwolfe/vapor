@@ -1,12 +1,13 @@
-#depend "entity"
-const Entity = window.EntityClass
+const chem = require("chem")
+const Entity = require("./entity.co")
 
+const Box2D = window.Box2D
 const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2MassData = Box2D.Collision.Shapes.b2MassData
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
 
-window.Man = class Man extends Entity
+module.exports = class Man extends Entity
   half_width: 0.8/2
   sensor_half_width: 0.8/2 * 0.95
   standing_half_height: 2.6/2
@@ -18,8 +19,8 @@ window.Man = class Man extends Entity
   ouch_time: 130
   ~>
     # don't use chem until we're constructed, otherwise the spritesheet may not have loaded yet.
-    @standing_sprite = new Chem.Sprite 'man_stand', z_order: 1
-    @crouching_sprite = new Chem.Sprite 'man_crouch', z_order: 1
+    @standing_sprite = new chem.Sprite 'man_stand', z_order: 1
+    @crouching_sprite = new chem.Sprite 'man_crouch', z_order: 1
     @body = null
     @mass = null
     @ground_sensors = {}

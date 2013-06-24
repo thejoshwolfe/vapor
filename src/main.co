@@ -9,14 +9,10 @@ const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
-#depend "map"
-const Map = window.Map
-
-#depend "entity"
-const Entity = window.EntityClass
-
-#depend "man"
-const Man = window.Man
+const chem = require("chem")
+const Map = require("./map.co")
+const Entity = require("./entity.co")
+const Man = require("./man.co")
 
 const entity_classes =
   Man: Man
@@ -26,8 +22,8 @@ const entity_classes =
     yike_cooldown: 100
     knockback_power: 20
     ->
-      @normal_sprite = new Chem.Sprite "blob_normal"
-      @yikes_sprite = new Chem.Sprite "blob_yikes"
+      @normal_sprite = new chem.Sprite "blob_normal"
+      @yikes_sprite = new chem.Sprite "blob_yikes"
       @yiking_start = null
     get_shape: -> new b2CircleShape 1
     get_sprite: ->
@@ -54,7 +50,7 @@ let
         document.getElementById("loading").setAttribute "style", "display:none;"
         init!
 
-  Chem.onReady create_wait_condition "sprites"
+  chem.onReady create_wait_condition "sprites"
 
   map_is_ready = create_wait_condition "map"
   request = new XMLHttpRequest!
@@ -67,19 +63,19 @@ let
 
 init = ->
   const canvas = document.getElementById "game"
-  const canvas_center = new Chem.Vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
-  const engine = new Chem.Engine canvas
+  const canvas_center = chem.vec2d canvas.getAttribute("width")/2, canvas.getAttribute("height")/2
+  const engine = new chem.Engine canvas
   const standard_gravity = new b2Vec2 0, 30
 
   sounds =
-    bchs: new Chem.Sound "sfx/bchs.ogg"
+    bchs: new chem.Sound "sfx/bchs.ogg"
   buttons =
-    left: Chem.Button.Key_A
-    right: Chem.Button.Key_D
-    crouch: Chem.Button.Key_S
-    jump: Chem.Button.Key_K
-    pew: Chem.Button.Key_J
-    debug: Chem.Button.Key_Grave
+    left: chem.button.KeyA
+    right: chem.button.KeyD
+    crouch: chem.button.KeyS
+    jump: chem.button.KeyK
+    pew: chem.button.KeyJ
+    debug: chem.button.KeyGrave
 
   # GIMME THE FIZZAQS!
   const view_scale = map.scale
@@ -181,7 +177,7 @@ init = ->
       contact_normal = null
       visitContacts creep.body, (fixture, contact, normal_direction) ->
         if fixture is man.fixture
-          contact_normal := new Chem.Vec2d(contact.GetManifold().m_localPlaneNormal).scale(normal_direction)
+          contact_normal := chem.vec2d(contact.GetManifold().m_localPlaneNormal).scale(normal_direction)
       if new Date! - creep.yiking_start >= creep.yike_time + creep.yike_cooldown
         creep.yiking_start = null
       if contact_normal? and not creep.yiking_start?
@@ -289,7 +285,7 @@ init = ->
     man.was_crouching = man.is_crouching
 
   world_to_canvas = ->
-    in_pixels = new Chem.Vec2d(it).scale(view_scale)
+    in_pixels = chem.vec2d(it).scale(view_scale)
     # snap to integer pixels to prevent seeing cracks between tiles
     in_pixels.floor!
     return in_pixels
@@ -307,7 +303,7 @@ init = ->
     context.fillStyle = '#000000'
     context.fillRect 0, 0, engine.size.x, engine.size.y
     context.save!
-    let center = world_to_canvas(new Chem.Vec2d man.body.GetPosition!).sub canvas_center
+    let center = world_to_canvas(chem.vec2d man.body.GetPosition!).sub canvas_center
       context.translate -center.x, -center.y
 
     if debug_drawing
@@ -318,11 +314,11 @@ init = ->
       map.draw_tiles context, view_aabb
 
       # figure out which bodies to draw
-      sprite_batch = new Chem.Batch!
+      sprite_batch = new chem.Batch!
       query_aabb world, view_aabb, (fixture) ->
         body = fixture.GetBody!
         sprite = body.GetUserData!
-        if sprite instanceof Chem.Sprite
+        if sprite instanceof chem.Sprite
           # set the positions of sprite
           sprite.pos = world_to_canvas body.GetPosition!
           sprite_batch.add sprite

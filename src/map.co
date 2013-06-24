@@ -5,7 +5,7 @@ const flip_vertical_flag   = 0x40000000
 const flip_diagonal_flag   = 0x20000000
 const imageid_mask         = 0x1fffffff
 
-window.Map = class Map
+module.exports = class Map
   ~>
     @tilesets = []
     @layers = []
