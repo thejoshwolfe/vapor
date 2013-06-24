@@ -27,8 +27,6 @@ window.Man = class Man extends Entity
     @is_crouching = null
     @was_crouching = false
     @is_jumping = false
-    @gravity_direction = 1
-    @facing_direction = 1
 
   init: (world, aabb, opts) ->
     super ...

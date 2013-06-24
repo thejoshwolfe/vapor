@@ -15,4 +15,5 @@ exports.spritesheet =
   animations:
     man_stand: {}
     man_crouch: {}
-    blob: {}
+    blob_normal: {}
+    blob_yikes: {}

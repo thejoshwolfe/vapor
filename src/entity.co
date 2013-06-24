@@ -4,9 +4,10 @@ const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
 
 window.EntityClass = class Entity
+  body_type: b2Body.b2_dynamicBody
   init: (world, aabb, opts) ->
     body_def = new b2BodyDef!
-    body_def.type = b2Body.b2_dynamicBody
+    body_def.type = @body_type
     body_def.position = aabb.GetCenter!
     body_def.fixedRotation = true
     @body = world.CreateBody body_def
@@ -19,5 +20,8 @@ window.EntityClass = class Entity
 
     # cache the mass so we can keep it constant through shape changes
     @mass = @body.GetMass!
+
+    @facing_direction = 1
+    @gravity_direction = 1
 
   refresh_shape: -> @fixture.m_shape = @get_shape!

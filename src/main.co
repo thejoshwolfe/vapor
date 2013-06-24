@@ -7,6 +7,7 @@ const b2World = Box2D.Dynamics.b2World
 const b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 #depend "map"
 const Map = window.Map
@@ -20,10 +21,13 @@ const Man = window.Man
 const entity_classes =
   Man: Man
   Blob: class Blob extends Entity
+    body_type: b2Body.b2_kinematicBody
     ->
-      @sprite = new Chem.Sprite "blob"
-    get_shape: -> b2PolygonShape.AsBox 1, 1
-    get_sprite: -> @sprite
+      @normal_sprite = new Chem.Sprite "blob_normal"
+      @yikes_sprite = new Chem.Sprite "blob_yikes"
+      @bapping = false
+    get_shape: -> new b2CircleShape 1
+    get_sprite: -> if @bapping then @yikes_sprite else @normal_sprite
 
 map = null
 let
@@ -80,6 +84,8 @@ init = ->
   debug_drawer = null
   debug_drawing = false
   man = null
+  entities = []
+  creeps = []
   window._debug_man = man
   let
     world := new b2World new b2Vec2(), true
@@ -148,24 +154,30 @@ init = ->
       !function make_entity(aabb, opts)
         entity = new (entity_classes[opts.class])
         entity.init world, aabb, opts
+        entities.push entity
         if entity instanceof Man
           man := entity
+        else
+          creeps.push entity
 
 
   engine.on 'update', (dt, dx) ->
 
     debug_drawing := !debug_drawing if engine.buttonJustPressed buttons.debug
 
-    man.is_grounded = do ->
+    let
       ground_sensor = man.get_ground_sensor!
-      contact_edge = man.body.GetContactList!
-      while contact_edge
-        contact = contact_edge.contact
-        if contact.IsTouching!
-          if contact.GetFixtureA! is ground_sensor or contact.GetFixtureB! is ground_sensor
-            return true
-        contact_edge = contact_edge.next
-      false
+      man.is_grounded = false
+      visitContacts man.body, !(fixture) ->
+        if fixture is ground_sensor
+          man.is_grounded = true
+
+    creeps.forEach (creep) ->
+      creep.bapping = false
+      visitContacts creep.body, (fixture) ->
+        if fixture is man.fixture
+          creep.bapping = true
+
     man.is_crouching = engine.buttonState buttons.crouch
 
     # adjust bounding box for crouching/standing
@@ -249,10 +261,11 @@ init = ->
 
     # update sprite
     man.facing_direction = horizontal_intention if horizontal_intention is not 0
-    sprite = man.get_sprite!
-    sprite.scale.x = man.facing_direction
-    sprite.scale.y = man.gravity_direction
-    man.body.SetUserData sprite
+    for entity of entities
+      sprite = entity.get_sprite!
+      sprite.scale.x = entity.facing_direction
+      sprite.scale.y = entity.gravity_direction
+      entity.body.SetUserData sprite
 
     world.Step dt, 10, 10
     world.ClearForces!
@@ -342,4 +355,13 @@ function make_aabb(x1, y1, x2, y2)
   result.upperBound.x = x2
   result.upperBound.y = y2
   result
+
+!function visitContacts(body, cb)
+  contact_edge = body.GetContactList!
+  while contact_edge
+    contact = contact_edge.contact
+    if contact.IsTouching!
+      cb contact.GetFixtureA!
+      cb contact.GetFixtureB!
+    contact_edge = contact_edge.next
 
