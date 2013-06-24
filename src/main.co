@@ -64,7 +64,7 @@ let
     return unless request.readyState is 4 and request.status is 200
     map := Map.parse request.responseText, create_wait_condition
     map_is_ready!
-  request.open "GET", "map.tmx", true
+  request.open "GET", "test.tmx", true
   request.send!
 
 init = ->
@@ -157,8 +157,8 @@ init = ->
     # create the man
     body_def = new b2BodyDef!
     body_def.type = b2Body.b2_dynamicBody
-    body_def.position.x = 40
-    body_def.position.y = 43
+    body_def.position.x = 5
+    body_def.position.y = 5
     body_def.fixedRotation = true
     man.body := world.CreateBody body_def
     man.body.SetUserData man.standing_sprite
