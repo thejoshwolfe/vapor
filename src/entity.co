@@ -1,0 +1,23 @@
+const Box2D = window.Box2D
+const b2BodyDef = Box2D.Dynamics.b2BodyDef
+const b2Body = Box2D.Dynamics.b2Body
+const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+
+window.EntityClass = class Entity
+  init: (world, aabb, opts) ->
+    body_def = new b2BodyDef!
+    body_def.type = b2Body.b2_dynamicBody
+    body_def.position = aabb.GetCenter!
+    body_def.fixedRotation = true
+    @body = world.CreateBody body_def
+    @body.SetUserData @get_sprite!
+    fixture_def = new b2FixtureDef!
+    fixture_def.density = 1.0
+    fixture_def.friction = 0
+    fixture_def.shape = @get_shape!
+    @fixture = @body.CreateFixture fixture_def
+
+    # cache the mass so we can keep it constant through shape changes
+    @mass = @body.GetMass!
+
+  refresh_shape: -> @fixture.m_shape = @get_shape!

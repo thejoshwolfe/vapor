@@ -14,15 +14,20 @@
   </data>
  </layer>
  <objectgroup name="objects" width="10" height="10">
-  <object name="man" type="entity" x="192" y="64" width="32" height="96">
+  <object name="man" type="entity" x="64" y="192" width="32" height="96">
    <properties>
-    <property name="x_direction" value="1"/>
+    <property name="class" value="Man"/>
    </properties>
   </object>
   <object type="gravity" x="224" y="32" width="64" height="128">
    <properties>
     <property name="gravity_scale" value="-1"/>
     <property name="priority" value="1"/>
+   </properties>
+  </object>
+  <object name="creep" type="entity" x="224" y="224" width="64" height="64">
+   <properties>
+    <property name="class" value="Blob"/>
    </properties>
   </object>
  </objectgroup>

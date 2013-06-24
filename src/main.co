@@ -1,39 +1,29 @@
-#depend "map"
-#depend "man"
-
+const Box2D = window.Box2D
 const b2Vec2 = Box2D.Common.Math.b2Vec2
 const b2BodyDef = Box2D.Dynamics.b2BodyDef
 const b2Body = Box2D.Dynamics.b2Body
 const b2FixtureDef = Box2D.Dynamics.b2FixtureDef
-const b2RevoluteJointDef = Box2D.Dynamics.Joints.b2RevoluteJointDef
 const b2World = Box2D.Dynamics.b2World
 const b2DebugDraw = Box2D.Dynamics.b2DebugDraw
 const b2AABB = Box2D.Collision.b2AABB
 const b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
-const b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
-# ugh. make this api more coffee-like
-query_aabb = (world, aabb, callback) ->
-  # callback should be the last parameter
-  actual_callback = (fixture) ->
-    # invert the return value, so that the default case continues
-    !callback fixture
-  world.QueryAABB callback, aabb
+#depend "map"
+const Map = window.Map
 
-sign = (n) -> if n < 0 then -1 else if n > 0 then 1 else 0
+#depend "entity"
+const Entity = window.EntityClass
 
-# couldn't find an existing function for this, so here's my version
-aabb_contains_point = (aabb, point) ->
-  ( aabb.lowerBound.x <= point.x and point.x < aabb.upperBound.x and
-    aabb.lowerBound.y <= point.y and point.y < aabb.upperBound.y )
+#depend "man"
+const Man = window.Man
 
-make_aabb = (x1, y1, x2, y2) ->
-  result = new b2AABB!
-  result.lowerBound.x = x1
-  result.lowerBound.y = y1
-  result.upperBound.x = x2
-  result.upperBound.y = y2
-  result
+const entity_classes =
+  Man: Man
+  Blob: class Blob extends Entity
+    ->
+      @sprite = new Chem.Sprite "blob"
+    get_shape: -> b2PolygonShape.AsBox 1, 1
+    get_sprite: -> @sprite
 
 map = null
 let
@@ -89,7 +79,7 @@ init = ->
   gravity_zones = []
   debug_drawer = null
   debug_drawing = false
-  man = new Man
+  man = null
   window._debug_man = man
   let
     world := new b2World new b2Vec2(), true
@@ -138,49 +128,29 @@ init = ->
             flush_strech_floor!
         flush_strech_floor!
       for object of map.objects
+        aabb = make_aabb(
+          object.x / map.scale
+          object.y / map.scale
+          (object.x + object.width) / map.scale
+          (object.y + object.height) / map.scale
+        )
         switch object.type
           case \gravity
             gravity_zones.push(
               scale: parseFloat object.properties.gravity_scale
               priority: parseFloat object.properties.priority
-              aabb: make_aabb(
-                object.x / map.scale
-                object.y / map.scale
-                (object.x + object.width) / map.scale
-                (object.y + object.height) / map.scale
-              )
+              aabb: aabb
             )
           case \entity
-            man_start_position =
-              x: (object.x + object.width/2) / map.scale
-              y: (object.y + object.height/2) / map.scale
-      gravity_zones.sort (a, b) ->
-        if a.priority < b.priority then -1 else if a.priority > b.priority then 1 else 0
+            make_entity aabb, object.properties
+      gravity_zones.sort operator_comparator \priority
 
-    # create the man
-    body_def = new b2BodyDef!
-    body_def.type = b2Body.b2_dynamicBody
-    body_def.position.x = man_start_position.x
-    body_def.position.y = man_start_position.y
-    body_def.fixedRotation = true
-    man.body := world.CreateBody body_def
-    man.body.SetUserData man.standing_sprite
-    torso_def = new b2FixtureDef!
-    torso_def.density = 1.0
-    torso_def.friction = 0
-    torso_def.shape = man.get_torso_shape!
-    man.torso_fixture = man.body.CreateFixture torso_def
+      !function make_entity(aabb, opts)
+        entity = new (entity_classes[opts.class])
+        entity.init world, aabb, opts
+        if entity instanceof Man
+          man := entity
 
-    ground_sensor_def = new b2FixtureDef!
-    ground_sensor_def.density = 0
-    ground_sensor_def.isSensor = true
-    ground_sensor_def.shape = man.get_ground_sensor_shape 1
-    man.ground_sensors[1] = man.body.CreateFixture ground_sensor_def
-    ground_sensor_def.shape = man.get_ground_sensor_shape -1
-    man.ground_sensors[-1] = man.body.CreateFixture ground_sensor_def
-
-    # cache the mass so we can keep it constant through shape changes
-    man.mass = man.body.GetMass!
 
   engine.on 'update', (dt, dx) ->
 
@@ -201,7 +171,7 @@ init = ->
     # adjust bounding box for crouching/standing
     if man.was_crouching is not man.is_crouching
       # stand up / crouch down
-      man.torso_fixture.m_shape = man.get_torso_shape!
+      man.refresh_shape!
       man.ground_sensors[1].m_shape = man.get_ground_sensor_shape 1
       man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape -1
       man.reset_mass!
@@ -279,7 +249,7 @@ init = ->
 
     # update sprite
     man.facing_direction = horizontal_intention if horizontal_intention is not 0
-    sprite = if man.is_crouching then man.crouching_sprite else man.standing_sprite
+    sprite = man.get_sprite!
     sprite.scale.x = man.facing_direction
     sprite.scale.y = man.gravity_direction
     man.body.SetUserData sprite
@@ -341,4 +311,35 @@ init = ->
 
   engine.start!
   canvas.focus!
+
+
+function compare(a, b)
+  if a < b then -1 else if a > b then 1 else 0
+
+function sign(n)
+  compare(n, 0)
+
+function operator_comparator(property_name)
+  (a, b) -> compare a[property_name], b[property_name]
+
+# ugh. make this api more coffee-like
+function query_aabb(world, aabb, callback)
+  # callback should be the last parameter
+  actual_callback = (fixture) ->
+    # invert the return value, so that the default case continues
+    !callback fixture
+  world.QueryAABB callback, aabb
+
+# couldn't find an existing function for this, so here's my version
+function aabb_contains_point(aabb, point)
+  ( aabb.lowerBound.x <= point.x and point.x < aabb.upperBound.x and
+    aabb.lowerBound.y <= point.y and point.y < aabb.upperBound.y )
+
+function make_aabb(x1, y1, x2, y2)
+  result = new b2AABB!
+  result.lowerBound.x = x1
+  result.lowerBound.y = y1
+  result.upperBound.x = x2
+  result.upperBound.y = y2
+  result
 
