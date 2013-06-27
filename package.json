@@ -13,7 +13,7 @@
   "dependencies": {
     "coco": "~0.7.6",
     "chem-cli": "~0.4.0",
-    "chem": "~0.4.0"
+    "chem": "~0.4.2"
   },
   "scripts": {
     "dev": "npm install && chem dev"

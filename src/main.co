@@ -67,6 +67,9 @@ init = ->
   const engine = new chem.Engine canvas
   const standard_gravity = new b2Vec2 0, 30
 
+  engine.buttonCaptureExceptions[chem.button.KeyCtrl] = true
+  engine.buttonCaptureExceptions[chem.button["KeyF" + i]] = true for i from 1 to 10
+
   sounds =
     bchs: new chem.Sound "sfx/bchs.ogg"
   buttons =
