@@ -67,6 +67,8 @@ init = ->
   const engine = new chem.Engine canvas
   const standard_gravity = new b2Vec2 0, 30
 
+  const fpsLabel = engine.createFpsLabel!
+
   engine.buttonCaptureExceptions[chem.button.KeyCtrl] = true
   engine.buttonCaptureExceptions[chem.button["KeyF" + i]] = true for i from 1 to 10
 
@@ -328,12 +330,12 @@ init = ->
         body = body.m_next
 
       # draw the sprites in front of the above walls
-      engine.draw sprite_batch
+      sprite_batch.draw context
 
     context.restore!
     # draw a little fps counter in the corner
+    fpsLabel.draw context
     context.fillStyle = '#ffffff'
-    engine.drawFps!
     context.fillText "grounded = #{man.is_grounded}", 100, canvas_center.y * 2
     context.fillText "jumping = #{man.is_jumping}", 200, canvas_center.y * 2
 
