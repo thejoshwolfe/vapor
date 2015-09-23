@@ -30,37 +30,98 @@
       }
     }
   };
+  // TODO: silly
+  var non_wall_image_ids = [0, 17, 18];
+  window._all_image_ids = [];
   Map.prototype.draw_tile = function(context, layer_index, x, y) {
     var tile = this.tile(layer_index, x, y);
     if (tile === 0) return;
-    var flip_horizontal = !!(tile & flip_horizontal_flag);
-    var flip_vertical = !!(tile & flip_vertical_flag);
-    var flip_diagonal = !!(tile & flip_diagonal_flag);
-    var rotation = 0;
-    if (flip_diagonal) {
-      rotation += Math.PI / 2;
-      flip_horizontal = !flip_horizontal;
-    }
+    var width  = 32;
+    var height = 32;
+    var half_width  = 16;
+    var half_height = 16;
     var imageid = tile & imageid_mask;
-    var tileset;
-    var image_bounds;
-    for (var i = 0; i < this.tilesets.length; i++) {
-      tileset = this.tilesets[i];
-      image_bounds = tileset.image_bounds(imageid);
-      if (image_bounds != null) {
-        break;
-      }
+    if (_all_image_ids.indexOf(imageid) === -1) {
+      _all_image_ids.push(imageid);
+      _all_image_ids.sort();
     }
-    context.save();
-    var half_width = image_bounds.width / 2;
-    var half_height = image_bounds.height / 2;
-    context.translate(x * this.scale + half_width, y * this.scale + half_height);
-    context.scale(flip_horizontal ? -1 : 1, flip_vertical ? -1 : 1);
-    context.rotate(rotation);
-    context.drawImage(tileset.image,
-      image_bounds.x, image_bounds.y, image_bounds.width, image_bounds.height,
-      -half_width,    -half_height,   image_bounds.width, image_bounds.height);
-    context.restore();
+
+    if (non_wall_image_ids.indexOf(imageid) === -1) {
+      // special wall drawing logic
+      var edge_width = 6;
+      var neighbors = [
+        [
+          non_wall_image_ids.indexOf(this.tile(layer_index, x - 1, y - 1)) === -1,
+          non_wall_image_ids.indexOf(this.tile(layer_index, x + 0, y - 1)) === -1,
+          non_wall_image_ids.indexOf(this.tile(layer_index, x + 1, y - 1)) === -1,
+        ], [
+          non_wall_image_ids.indexOf(this.tile(layer_index, x - 1, y + 0)) === -1,
+          true,
+          non_wall_image_ids.indexOf(this.tile(layer_index, x + 1, y + 0)) === -1,
+        ], [
+          non_wall_image_ids.indexOf(this.tile(layer_index, x - 1, y + 1)) === -1,
+          non_wall_image_ids.indexOf(this.tile(layer_index, x + 0, y + 1)) === -1,
+          non_wall_image_ids.indexOf(this.tile(layer_index, x + 1, y + 1)) === -1,
+        ]
+      ];
+      context.save();
+      context.translate(x * this.scale + half_width, y * this.scale + half_height);
+      context.fillStyle = "#000080";
+      context.fillRect(-half_width, -half_height, width, height);
+      context.fillStyle = "#0000ff";
+      if (!neighbors[0][0] || !neighbors[1][0] || !neighbors[0][1]) {
+        context.fillRect(-half_width, -half_height, edge_width, edge_width);
+      }
+      if (!neighbors[2][0] || !neighbors[1][0] || !neighbors[2][1]) {
+        context.fillRect(-half_width, half_height - edge_width, edge_width, edge_width);
+      }
+      if (!neighbors[0][2] || !neighbors[1][2] || !neighbors[0][1]) {
+        context.fillRect(half_width - edge_width, -half_height, edge_width, edge_width);
+      }
+      if (!neighbors[2][2] || !neighbors[1][2] || !neighbors[2][1]) {
+        context.fillRect(half_width - edge_width, half_height - edge_width, edge_width, edge_width);
+      }
+      if (!neighbors[0][1]) {
+        context.fillRect(-(half_width - edge_width), -half_width, 2 * (half_width - edge_width), edge_width);
+      }
+      if (!neighbors[2][1]) {
+        context.fillRect(-(half_width - edge_width), half_width - edge_width, 2 * (half_width - edge_width), edge_width);
+      }
+      if (!neighbors[1][0]) {
+        context.fillRect(-half_width, -(half_width - edge_width), edge_width, 2 * (half_width - edge_width));
+      }
+      if (!neighbors[1][2]) {
+        context.fillRect(half_width - edge_width, -(half_width - edge_width), edge_width, 2 * (half_width - edge_width));
+      }
+      context.restore();
+    } else {
+      var flip_horizontal = !!(tile & flip_horizontal_flag);
+      var flip_vertical = !!(tile & flip_vertical_flag);
+      var flip_diagonal = !!(tile & flip_diagonal_flag);
+      var rotation = 0;
+      if (flip_diagonal) {
+        rotation += Math.PI / 2;
+        flip_horizontal = !flip_horizontal;
+      }
+      var tileset;
+      var image_bounds;
+      for (var i = 0; i < this.tilesets.length; i++) {
+        tileset = this.tilesets[i];
+        image_bounds = tileset.image_bounds(imageid);
+        if (image_bounds != null) {
+          break;
+        }
+      }
+
+      context.save();
+      context.translate(x * this.scale + half_width, y * this.scale + half_height);
+      context.scale(flip_horizontal ? -1 : 1, flip_vertical ? -1 : 1);
+      context.rotate(rotation);
+      context.drawImage(tileset.image,
+        image_bounds.x, image_bounds.y, image_bounds.width, image_bounds.height,
+        -half_width,    -half_height,   image_bounds.width, image_bounds.height);
+      context.restore();
+    }
   };
 
   function Tileset() {
