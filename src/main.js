@@ -92,6 +92,13 @@
     canvas_center = new Chem.Vec2d(canvas.getAttribute("width") / 2, canvas.getAttribute("height") / 2);
     engine = new Chem.Engine(canvas);
     standard_gravity = new b2Vec2(0, 30);
+
+    engine.buttonCaptureExceptions[Chem.button.KeyCtrl] = true;
+    engine.buttonCaptureExceptions[Chem.button.KeyAlt] = true;
+    for (var i = 1; i <= 12; i++) {
+      engine.buttonCaptureExceptions[Chem.button["KeyF" + i]] = true;
+    }
+
     sounds = {
       bchs: new Chem.Sound("sfx/bchs.ogg")
     };
