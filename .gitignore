@@ -1,5 +1,6 @@
-node_modules/
-public/spritesheet.png
-public/animations.json
-public/main.js
-public/chem.js
+/node_modules/
+/public/spritesheet.png
+/public/animations.json
+/public/main.js
+/public/chem.js
+/public/bootstrap.js
