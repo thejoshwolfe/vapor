@@ -115,7 +115,7 @@
     gravity_zones = [];
     debug_drawer = null;
     debug_drawing = false;
-    man = new Man;
+    man = new Man();
     window._debug_man = man;
     (function(){
       var fixture_def, stretch_floor_start, stretch_floor_end, flush_strech_floor, y, ref$, len$, row, x, len1$, value, i$, ref1$, len2$, object, gravity_scale, priority, body_def, torso_def, ground_sensor_def;
