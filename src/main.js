@@ -99,6 +99,7 @@
       left: Chem.Button.KeyA,
       right: Chem.Button.KeyD,
       crouch: Chem.Button.KeyS,
+      stand: Chem.Button.KeyW,
       jump: Chem.Button.KeyK,
       pew: Chem.Button.KeyJ,
       debug: Chem.Button.KeyGrave
@@ -218,30 +219,62 @@
         return false;
       })();
 
-      var was_crouching = man.is_crouching;
-      man.is_crouching = engine.buttonState(buttons.crouch);
-      if (was_crouching !== man.is_crouching) {
+      // input intentions
+      var vertical_intention = 0;
+      if (engine.buttonJustPressed(buttons.crouch)) vertical_intention--;
+      if (engine.buttonJustPressed(buttons.stand))  vertical_intention++;
+      var new_posture = man.posture + vertical_intention;
+      if (new_posture < 0) new_posture = 0;
+      if (new_posture > Man.POSTURE_STANDING) new_posture = Man.POSTURE_STANDING;
+      var horizontal_intention = 0;
+      if (engine.buttonState(buttons.left))  horizontal_intention--;
+      if (engine.buttonState(buttons.right)) horizontal_intention++;
+      var jump_now = engine.buttonJustPressed(buttons.jump);
+      if (jump_now && new_posture === Man.POSTURE_CRAWLING) {
+        // can't jump while crawling, but we'll get you one step closer.
+        jump_now = false;
+        new_posture = Man.POSTURE_CROUCHING;
+      } else if (jump_now && new_posture === Man.POSTURE_CROUCHING) {
+        // extend your legs to jump
+        new_posture = Man.POSTURE_STANDING;
+      }
+      if (man.is_grounded && new_posture === Man.POSTURE_CROUCHING && horizontal_intention !== 0) {
+        // can't walk while crouching, so stand up
+        new_posture = Man.POSTURE_STANDING;
+      }
+
+      var old_posture = man.posture;
+      var old_half_height = man.get_half_height();
+      man.posture = new_posture;
+      if (old_posture !== man.posture) {
         man.torso_fixture.m_shape = man.get_torso_shape();
         man.ground_sensors[1].m_shape = man.get_ground_sensor_shape(1);
         man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape(-1);
         man.reset_mass();
         if (man.is_grounded) {
-          // cling to the ground as you crouch
+          // anchor your feet to the ground while you change posture
           var position = man.body.GetPosition().Copy();
-          var direction = man.is_crouching ? 1 : -1;
-          position.y += man.gravity_direction * direction * (man.standing_half_height - man.crouching_half_height);
+          position.y += man.gravity_direction * (old_half_height - man.get_half_height());
           man.body.SetPosition(position);
         }
       }
 
       var man_velocity = man.body.GetLinearVelocity();
-      var horizontal_intention = 0;
-      if (engine.buttonState(buttons.left))  horizontal_intention--;
-      if (engine.buttonState(buttons.right)) horizontal_intention++;
-      var magic_max_velocity = horizontal_intention * man.max_speed;
+      var max_speed = 10;
+      if (man.is_grounded) {
+        if (man.posture === Man.POSTURE_CROUCHING) max_speed = 0;
+        if (man.posture === Man.POSTURE_CRAWLING)  max_speed = 5;
+      }
+      var magic_max_velocity = horizontal_intention * max_speed;
+      var acceleration = max_speed / 5;
       if (horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity) {
         // let's go
-        man.body.ApplyImpulse(new b2Vec2(2.0 * horizontal_intention, 0), man.body.GetPosition());
+        man.body.ApplyImpulse(new b2Vec2(acceleration * horizontal_intention, 0), man.body.GetPosition());
+      } else if (horizontal_intention !== 0) {
+        // you're running too fast
+        man_velocity = man_velocity.Copy();
+        man_velocity.x = magic_max_velocity;
+        man.body.SetLinearVelocity(man_velocity);
       }
 
       if (man.is_grounded && horizontal_intention === 0) {
@@ -290,7 +323,7 @@
       man.gravity_direction = gravity_direction;
 
       // jomp
-      if (man.is_grounded && engine.buttonJustPressed(buttons.jump)) {
+      if (man.is_grounded && jump_now) {
         var jump_impulse = man.jump_impulse.Copy();
         jump_impulse.y *= gravity_direction;
         man.body.ApplyImpulse(jump_impulse, man.body.GetPosition());
@@ -315,7 +348,7 @@
 
       // sprites
       if (horizontal_intention !== 0) man.facing_direction = horizontal_intention;
-      var sprite = man.is_crouching ? man.crouching_sprite : man.standing_sprite;
+      var sprite = man.get_sprite();
       sprite.scale.x = man.facing_direction;
       sprite.scale.y = man.gravity_direction;
       man.body.SetUserData(sprite);

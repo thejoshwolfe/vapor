@@ -16,5 +16,6 @@ exports.spritesheet = {
   animations: {
     man_stand: {},
     man_crouch: {},
+    man_crawl: {},
   },
 };
