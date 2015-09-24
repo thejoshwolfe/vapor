@@ -225,10 +225,11 @@
         man.ground_sensors[1].m_shape = man.get_ground_sensor_shape(1);
         man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape(-1);
         man.reset_mass();
-        if (man.is_crouching && man.is_grounded) {
+        if (man.is_grounded) {
           // cling to the ground as you crouch
           var position = man.body.GetPosition().Copy();
-          position.y += man.gravity_direction * (man.standing_half_height - man.crouching_half_height);
+          var direction = man.is_crouching ? 1 : -1;
+          position.y += man.gravity_direction * direction * (man.standing_half_height - man.crouching_half_height);
           man.body.SetPosition(position);
         }
       }
