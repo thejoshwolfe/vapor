@@ -201,12 +201,12 @@
       if (engine.buttonJustPressed(buttons.debug)) {
         debug_drawing = !debug_drawing;
       }
-      man.is_grounded = function(){
-        var ground_sensor, contact_edge, contact;
-        ground_sensor = man.get_ground_sensor();
-        contact_edge = man.body.GetContactList();
+
+      man.is_grounded = (function() {
+        var ground_sensor = man.get_ground_sensor();
+        var contact_edge = man.body.GetContactList();
         while (contact_edge) {
-          contact = contact_edge.contact;
+          var contact = contact_edge.contact;
           if (contact.IsTouching()) {
             if (contact.GetFixtureA() === ground_sensor || contact.GetFixtureB() === ground_sensor) {
               return true;
@@ -215,7 +215,8 @@
           contact_edge = contact_edge.next;
         }
         return false;
-      }();
+      })();
+
       man.is_crouching = engine.buttonState(buttons.crouch);
       if (man.was_crouching !== man.is_crouching) {
         man.torso_fixture.m_shape = man.get_torso_shape();
@@ -223,37 +224,37 @@
         man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape(-1);
         man.reset_mass();
         if (man.is_crouching && man.is_grounded) {
+          // cling to the ground as you crouch
           var position = man.body.GetPosition().Copy();
           position.y += man.gravity_direction * (man.standing_half_height - man.crouching_half_height);
           man.body.SetPosition(position);
         }
       }
+
       var man_velocity = man.body.GetLinearVelocity();
       var horizontal_intention = 0;
-      if (engine.buttonState(buttons.left)) {
-        horizontal_intention--;
-      }
-      if (engine.buttonState(buttons.right)) {
-        horizontal_intention++;
-      }
+      if (engine.buttonState(buttons.left))  horizontal_intention--;
+      if (engine.buttonState(buttons.right)) horizontal_intention++;
       var magic_max_velocity = horizontal_intention * man.max_speed;
       if (horizontal_intention * man_velocity.x < horizontal_intention * magic_max_velocity) {
+        // let's go
         man.body.ApplyImpulse(new b2Vec2(2.0 * horizontal_intention, 0), man.body.GetPosition());
       }
+
       if (man.is_grounded && horizontal_intention === 0) {
+        // please stop
         if (!man.was_grounded) {
+          // land abruptly
           man.body.SetLinearVelocity({
             x: 0,
             y: 0
           });
         } else {
-          function get_horizontal_direction() {
-            return sign(man_velocity.x);
-          }
-          var direction = get_horizontal_direction();
+          // slide to a stop
+          var direction = sign(man_velocity.x);
           if (direction !== 0) {
             man.body.ApplyImpulse(new b2Vec2(-2.0 * direction, 0), man.body.GetPosition());
-            var new_direction = get_horizontal_direction();
+            var new_direction = sign(man_velocity.x);
             if (new_direction !== 0 && new_direction !== direction) {
               man.body.SetLinearVelocity({
                 x: 0,
@@ -263,6 +264,7 @@
           }
         }
       }
+
       var gravity = standard_gravity.Copy();
       for (var i = gravity_zones.length - 1; i >= 0; i--) {
         var gravity_zone = gravity_zones[i];
@@ -283,6 +285,8 @@
         gravity_direction = man.gravity_direction;
       }
       man.gravity_direction = gravity_direction;
+
+      // jomp
       if (man.is_grounded && engine.buttonJustPressed(buttons.jump)) {
         var jump_impulse = man.jump_impulse.Copy();
         jump_impulse.y *= gravity_direction;
@@ -300,23 +304,27 @@
           man.is_jumping = false;
         }
       }
+
+      // pew pew
       if (engine.buttonJustPressed(buttons.pew)) {
         sounds.bchs.play();
       }
-      if (horizontal_intention !== 0) {
-        man.facing_direction = horizontal_intention;
-      }
-      var sprite = man.is_crouching
-        ? man.crouching_sprite
-        : man.standing_sprite;
+
+      // sprites
+      if (horizontal_intention !== 0) man.facing_direction = horizontal_intention;
+      var sprite = man.is_crouching ? man.crouching_sprite : man.standing_sprite;
       sprite.scale.x = man.facing_direction;
       sprite.scale.y = man.gravity_direction;
       man.body.SetUserData(sprite);
+
+      // physics
       world.Step(dt, 10, 10);
       world.ClearForces();
+
       man.was_grounded = man.is_grounded;
-      return man.was_crouching = man.is_crouching;
+      man.was_crouching = man.is_crouching;
     });
+
     function world_to_canvas(it) {
       var in_pixels;
       in_pixels = new Chem.Vec2d(it).scale(view_scale);
@@ -330,6 +338,7 @@
                        position.x + canvas_center.x / view_scale,
                        position.y + canvas_center.y / view_scale);
     }
+
     var fpsLabel = engine.createFpsLabel();
     engine.on('draw', function(context) {
       context.fillStyle = '#000000';
