@@ -202,6 +202,7 @@
         debug_drawing = !debug_drawing;
       }
 
+      var was_grounded = man.is_grounded;
       man.is_grounded = (function() {
         var ground_sensor = man.get_ground_sensor();
         var contact_edge = man.body.GetContactList();
@@ -217,8 +218,9 @@
         return false;
       })();
 
+      var was_crouching = man.is_crouching;
       man.is_crouching = engine.buttonState(buttons.crouch);
-      if (man.was_crouching !== man.is_crouching) {
+      if (was_crouching !== man.is_crouching) {
         man.torso_fixture.m_shape = man.get_torso_shape();
         man.ground_sensors[1].m_shape = man.get_ground_sensor_shape(1);
         man.ground_sensors[-1].m_shape = man.get_ground_sensor_shape(-1);
@@ -243,7 +245,7 @@
 
       if (man.is_grounded && horizontal_intention === 0) {
         // please stop
-        if (!man.was_grounded) {
+        if (!was_grounded) {
           // land abruptly
           man.body.SetLinearVelocity({
             x: 0,
@@ -320,9 +322,6 @@
       // physics
       world.Step(dt, 10, 10);
       world.ClearForces();
-
-      man.was_grounded = man.is_grounded;
-      man.was_crouching = man.is_crouching;
     });
 
     function world_to_canvas(it) {

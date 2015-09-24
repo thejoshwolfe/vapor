@@ -15,9 +15,7 @@
     this.ground_sensors = {};
     this.torso_fixture = null;
     this.is_grounded = null;
-    this.was_grounded = false;
     this.is_crouching = null;
-    this.was_crouching = false;
     this.is_jumping = false;
     this.gravity_direction = 1;
     this.facing_direction = 1;
