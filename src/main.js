@@ -184,18 +184,41 @@
       body_def.fixedRotation = true;
       man.body = world.CreateBody(body_def);
       man.body.SetUserData(man.standing_sprite);
+
       var torso_def = new b2FixtureDef();
       torso_def.density = 1.0;
       torso_def.friction = 0;
       torso_def.shape = man.get_torso_shape();
       man.torso_fixture = man.body.CreateFixture(torso_def);
+
       var ground_sensor_def = new b2FixtureDef();
       ground_sensor_def.density = 0;
       ground_sensor_def.isSensor = true;
-      ground_sensor_def.shape = man.get_ground_sensor_shape(1);
+      ground_sensor_def.shape = man.get_ground_sensor_shape();
       man.ground_sensor = man.body.CreateFixture(ground_sensor_def);
+
+      var ground_fringe_sensor_def = new b2FixtureDef();
+      ground_fringe_sensor_def.density = 0;
+      ground_fringe_sensor_def.isSensor = true;
+      ground_fringe_sensor_def.shape = man.get_ground_fringe_sensor_shape();
+      man.ground_fringe_sensor = man.body.CreateFixture(ground_fringe_sensor_def);
+
       man.mass = man.body.GetMass();
     })();
+
+    function is_sensor_in_contact(sensor) {
+      var contact_edge = man.body.GetContactList();
+      while (contact_edge) {
+        var contact = contact_edge.contact;
+        if (contact.IsTouching()) {
+          if (contact.GetFixtureA() === sensor || contact.GetFixtureB() === sensor) {
+            return true;
+          }
+        }
+        contact_edge = contact_edge.next;
+      }
+      return false;
+    }
 
     engine.on('update', function(dt, dx) {
       if (engine.buttonJustPressed(buttons.debug)) {
@@ -203,20 +226,8 @@
       }
 
       var was_grounded = man.is_grounded;
-      man.is_grounded = (function() {
-        var ground_sensor = man.ground_sensor;
-        var contact_edge = man.body.GetContactList();
-        while (contact_edge) {
-          var contact = contact_edge.contact;
-          if (contact.IsTouching()) {
-            if (contact.GetFixtureA() === ground_sensor || contact.GetFixtureB() === ground_sensor) {
-              return true;
-            }
-          }
-          contact_edge = contact_edge.next;
-        }
-        return false;
-      })();
+      man.is_grounded = is_sensor_in_contact(man.ground_sensor);
+      var is_fringe_contact = is_sensor_in_contact(man.ground_fringe_sensor);
 
       // input intentions
       var vertical_intention = 0;
@@ -240,6 +251,10 @@
       if (man.is_grounded && new_posture === Man.POSTURE_CROUCHING && horizontal_intention !== 0) {
         // can't walk while crouching, so stand up
         new_posture = Man.POSTURE_STANDING;
+      }
+      if (new_posture === Man.POSTURE_CRAWLING && !man.is_grounded && is_fringe_contact) {
+        // fall off ledge
+        new_posture = Man.POSTURE_CROUCHING;
       }
 
       var old_posture = man.posture;
