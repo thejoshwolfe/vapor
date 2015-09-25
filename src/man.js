@@ -9,7 +9,7 @@
     this.crawling_sprite = new Chem.Sprite(Chem.resources.animations.man_crawl, {z_order:1});
     this.body = null;
     this.mass = null;
-    this.ground_sensors = {};
+    this.ground_sensor = null;
     this.torso_fixture = null;
     this.is_grounded = null;
     this.posture = Man.POSTURE_STANDING;
@@ -48,9 +48,6 @@
     var center = new b2Vec2(0, gravity_direction * this.get_half_height());
     return b2PolygonShape.AsOrientedBox(this.sensor_half_width, this.ground_sensor_height, center);
   };
-  Man.prototype.get_ground_sensor = function() {
-    return this.ground_sensors[this.gravity_direction];
-  };
   Man.prototype.reset_mass = function() {
     this.body.SetAwake(true);
     this.body.ResetMassData();
@@ -58,5 +55,9 @@
     this.body.GetMassData(mass_data);
     mass_data.mass = this.mass;
     return this.body.SetMassData(mass_data);
+  };
+  Man.prototype.update_ground_sensor_shape = function() {
+    this.ground_sensor.m_shape = this.get_ground_sensor_shape(this.gravity_direction);
+    this.reset_mass();
   };
 })();
