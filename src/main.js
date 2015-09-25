@@ -240,6 +240,7 @@
       if (engine.buttonState(buttons.left))  horizontal_intention--;
       if (engine.buttonState(buttons.right)) horizontal_intention++;
       var jump_now = engine.buttonJustPressed(buttons.jump);
+      var keep_jumping = engine.buttonState(buttons.jump);
       if (jump_now && new_posture === Man.POSTURE_CRAWLING) {
         // can't jump while crawling, but we'll get you one step closer.
         jump_now = false;
@@ -327,14 +328,12 @@
       man.body.ApplyForce(gravity, man.body.GetPosition());
       var old_gravity_direction = man.gravity_direction;
       var new_gravity_direction = sign(gravity.y);
-      if (man.gravity_direction !== new_gravity_direction) {
-        man.is_jumping = false;
-      }
       if (new_gravity_direction === 0) {
         // i thought this wouldn't happen
         new_gravity_direction = man.gravity_direction;
       }
-      if (old_gravity_direction !== new_gravity_direction) {
+      if (man.gravity_direction !== new_gravity_direction) {
+        man.is_jumping = false;
         man.gravity_direction = new_gravity_direction;
         man.update_ground_sensor_shape();
       }
@@ -345,12 +344,13 @@
         jump_impulse.y *= new_gravity_direction;
         man.body.ApplyImpulse(jump_impulse, man.body.GetPosition());
         man.is_jumping = true;
-      }
-      if (man.is_jumping) {
+      } else if (man.is_jumping) {
         var jump_stop = new_gravity_direction * man.jump_stop;
         if (new_gravity_direction * man_velocity.y < new_gravity_direction * jump_stop) {
-          if (!engine.buttonState(buttons.jump)) {
+          if (!keep_jumping) {
+            man_velocity = man_velocity.Copy();
             man_velocity.y = jump_stop;
+            man.body.SetLinearVelocity(man_velocity);
             man.is_jumping = false;
           }
         } else {
